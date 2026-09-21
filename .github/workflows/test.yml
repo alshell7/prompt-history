@@ -22,7 +22,18 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -e ".[dev]"
       - run: pytest -q
+      - run: python -m build
+      - run: python tests/install_smoke.py
       - name: the CLI runs on a machine with no sessions
         run: |
           prompt-history stats
           prompt-history sources
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test tests/web.test.cjs

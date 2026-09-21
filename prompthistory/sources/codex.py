@@ -23,21 +23,23 @@ import json
 import os
 import re
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
-from ..model import Prompt, Session, clean_text, is_noise, to_iso
+from ..model import Prompt, Session, epoch, is_noise, to_iso
+from .codex_text import goal_context, is_subagent, user_text
 
-_USER_MESSAGE_TAG = re.compile(r"<user_message>(.*?)</user_message>", re.S)
+
+def _goal_key(text: str) -> str:
+    return re.sub(r"\s+", " ", text.removeprefix("/goal ")).strip()
+
 
 # Codex prepends its own scaffolding as user-role turns; these never came
 # from the keyboard.
 _SCAFFOLD_PREFIXES = (
-    "# Instructions",
-    "## My request for Codex:",
     "You are Codex",
     "<INSTRUCTIONS>",
     "# AGENTS.md",
-    "## Context",
     "[TURN CONTEXT]",
 )
 
@@ -70,7 +72,9 @@ def _content_to_text(content) -> str:
         if isinstance(block, str):
             parts.append(block)
         elif isinstance(block, dict):
-            if block.get("type") in ("input_text", "text", "output_text"):
+            if block.get("type") in ("tool_result", "tool_use", "output_text", "function_call_output"):
+                return ""
+            if block.get("type") in ("input_text", "text"):
                 value = block.get("text")
                 if isinstance(value, str):
                     parts.append(value)
@@ -84,6 +88,8 @@ def _looks_like_scaffold(text: str) -> bool:
 def _extract_user_text(record: dict) -> str | None:
     """Pull the typed text out of one rollout line, or None if it isn't one."""
     payload = record.get("payload") if isinstance(record.get("payload"), dict) else None
+    if record.get("type") not in (None, "message", "response_item", "event_msg", "user_message"):
+        return None
     candidates = [c for c in (payload, record) if isinstance(c, dict)]
 
     for node in candidates:
@@ -97,9 +103,12 @@ def _extract_user_text(record: dict) -> str | None:
     return None
 
 
-def _parse_rollout(path: Path) -> Session | None:
+def _parse_rollout(path: Path, include_subagents: bool = False) -> Session | None:
     session = Session(id=path.stem, source="codex", origin_file=str(path))
-    seen_text: set[str] = set()
+    previous = None
+    objectives: set[str] = set()
+    pending_goals = []
+    active_turn = None
 
     try:
         handle = path.open("r", encoding="utf-8", errors="replace")
@@ -122,6 +131,9 @@ def _parse_rollout(path: Path) -> Session | None:
             meta = payload or record
 
             if record.get("type") in ("session_meta", "state") or "instructions" in meta:
+                session.is_subagent = is_subagent(meta)
+                if is_subagent(meta) and not include_subagents:
+                    return None
                 session.id = meta.get("id") or session.id
                 session.project = meta.get("cwd") or session.project
                 git = meta.get("git")
@@ -131,6 +143,7 @@ def _parse_rollout(path: Path) -> Session | None:
                     meta.get("timestamp") or record.get("timestamp")
                 ) or session.started_at
             if record.get("type") == "turn_context":
+                active_turn = meta.get("turn_id") or meta.get("id")
                 session.project = meta.get("cwd") or session.project
                 session.model = meta.get("model") or session.model
 
@@ -138,31 +151,69 @@ def _parse_rollout(path: Path) -> Session | None:
             if raw is None:
                 continue
 
-            tagged = _USER_MESSAGE_TAG.search(raw)
-            if tagged:
-                raw = tagged.group(1)
-
-            text = clean_text(raw)
+            context = goal_context(raw)
+            if context is not None:
+                objective, edited = context
+                if not objective:
+                    continue
+                if not edited:
+                    pending_goals.append((objective, record.get("timestamp"), turn))
+                    continue
+                raw = "/goal " + objective
+            text, references, recovery_note = user_text(raw, session.project)
             if not text or is_noise(text) or _looks_like_scaffold(text):
                 continue
-            if text in seen_text:      # the same turn logged twice, in two shapes
-                continue
-            seen_text.add(text)
+            stamp = to_iso(record.get("timestamp")) or session.started_at
+            metadata = meta.get("internal_chat_message_metadata_passthrough") or {}
+            turn_id = metadata.get("turn_id") if isinstance(metadata, dict) else None
+            turn_id = turn_id or meta.get("turn_id") or active_turn
+            shape = "event" if meta.get("type") == "user_message" else "message"
+            # Pair duplicate representations of ONE submission, not all matching
+            # text in a session. Repeated requests on later turns must survive.
+            if previous:
+                old_text, old_shape, old_stamp, old_turn = previous
+                same_turn = bool(turn_id and old_turn and turn_id == old_turn)
+                close = bool(stamp and old_stamp and abs(epoch(stamp) - epoch(old_stamp)) <= 2)
+                if text == old_text and shape != old_shape and (same_turn or (not (turn_id and old_turn) and close)):
+                    previous = None
+                    continue
+            previous = (text, shape, stamp, turn_id)
+            objectives.add(_goal_key(text))
 
             session.prompts.append(
                 Prompt(
                     text=text,
                     source="codex",
                     session_id=session.id,
-                    timestamp=to_iso(record.get("timestamp")) or session.started_at,
+                    timestamp=stamp,
                     project=session.project,
                     git_branch=session.git_branch,
                     model=session.model,
                     origin_file=str(path),
                     turn=turn,
+                    references=references,
+                    recovery_note=recovery_note,
                 )
             )
 
+    # Some versions persist an objective only in the continuation envelope.
+    # Recover each missing objective once, never the continuation instructions.
+    for objective, stamp, turn in pending_goals:
+        key = _goal_key(objective)
+        if key not in objectives:
+            preceding = [p for p in session.prompts if p.turn < turn]
+            missing = preceding[-1] if preceding else None
+            if missing and missing.recovery_note and missing.text.startswith("/goal Read the Codex goal objective file at "):
+                missing.text = "/goal " + objective
+                missing.recovery_note = "Goal file unavailable; objective recovered from saved goal context."
+                missing.id = ""
+                missing.__post_init__()
+            else:
+                session.prompts.append(Prompt(text="/goal " + objective, source="codex",
+                    session_id=session.id, timestamp=to_iso(stamp), project=session.project,
+                    origin_file=str(path), turn=turn,
+                    recovery_note="Goal objective recovered from saved goal context."))
+            objectives.add(key)
     if not session.prompts:
         return None
     for prompt in session.prompts:
@@ -172,14 +223,14 @@ def _parse_rollout(path: Path) -> Session | None:
     return session.finalise()
 
 
-def collect_rollouts(extra_roots: list[str] | None = None) -> list[Session]:
+def collect_rollouts(extra_roots: list[str] | None = None, include_subagents: bool = False) -> list[Session]:
     sessions = []
     for root in codex_roots(extra_roots):
         for folder in (root / "sessions", root / "archived_sessions"):
             if not folder.is_dir():
                 continue
             for path in sorted(folder.rglob("*.jsonl")):
-                session = _parse_rollout(path)
+                session = _parse_rollout(path, include_subagents)
                 if session:
                     sessions.append(session)
     return sessions
@@ -207,7 +258,7 @@ def collect_composer_history(extra_roots: list[str] | None = None) -> list[Sessi
                     continue
                 if not isinstance(record, dict):
                     continue
-                text = clean_text(record.get("text") or record.get("prompt") or "")
+                text, references, note = user_text(record.get("text") or record.get("prompt") or "")
                 if not text or is_noise(text) or _looks_like_scaffold(text):
                     continue
                 sid = str(record.get("session_id") or record.get("sessionId") or "unknown")
@@ -228,6 +279,8 @@ def collect_composer_history(extra_roots: list[str] | None = None) -> list[Sessi
                         timestamp=to_iso(record.get("ts") or record.get("timestamp")),
                         origin_file=str(path),
                         turn=turn,
+                        references=references,
+                        recovery_note=note,
                     )
                 )
     return [s.finalise() for s in by_session.values() if s.prompts]
@@ -235,7 +288,7 @@ def collect_composer_history(extra_roots: list[str] | None = None) -> list[Sessi
 
 def _open_readonly(path: Path) -> sqlite3.Connection | None:
     try:
-        return sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=2)
+        return sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=2)
     except sqlite3.Error:
         return None
 
@@ -247,7 +300,7 @@ def _columns(con: sqlite3.Connection, table: str) -> set[str]:
         return set()
 
 
-def collect_thread_index(extra_roots: list[str] | None = None) -> list[Session]:
+def collect_thread_index(extra_roots: list[str] | None = None, include_subagents: bool = False) -> list[Session]:
     """Desktop `threads` rows keep the opening prompt even without a rollout."""
     sessions = []
     for root in codex_roots(extra_roots):
@@ -255,7 +308,7 @@ def collect_thread_index(extra_roots: list[str] | None = None) -> list[Session]:
             con = _open_readonly(db_path)
             if con is None:
                 continue
-            with con:
+            with closing(con):
                 cols = _columns(con, "threads")
                 if not {"id", "first_user_message"} <= cols:
                     continue
@@ -264,6 +317,7 @@ def collect_thread_index(extra_roots: list[str] | None = None) -> list[Session]:
                     for c in (
                         "id", "title", "cwd", "created_at_ms", "updated_at_ms",
                         "first_user_message", "model", "git_branch", "rollout_path",
+                        "source", "agent_path", "thread_section_id", "is_pinned", "created_at", "updated_at",
                     )
                     if c in cols
                 ]
@@ -273,12 +327,15 @@ def collect_thread_index(extra_roots: list[str] | None = None) -> list[Session]:
                     ).fetchall()
                 except sqlite3.Error:
                     continue
+                sections = {}
+                if {"id", "name"} <= _columns(con, "thread_sections"):
+                    sections = dict(con.execute("SELECT id, name FROM thread_sections"))
             for row in rows:
                 data = dict(zip(wanted, row))
-                text = clean_text(data.get("first_user_message") or "")
-                if not text or is_noise(text) or _looks_like_scaffold(text):
+                if is_subagent(data) and not include_subagents:
                     continue
-                stamp = to_iso(data.get("created_at_ms"))
+                text, references, note = user_text(data.get("first_user_message") or "", data.get("cwd"))
+                stamp = to_iso(data.get("created_at_ms") or data.get("created_at"))
                 sid = str(data.get("id"))
                 session = Session(
                     id=sid,
@@ -289,22 +346,27 @@ def collect_thread_index(extra_roots: list[str] | None = None) -> list[Session]:
                     model=data.get("model"),
                     origin_file=str(db_path),
                     started_at=stamp,
-                    ended_at=to_iso(data.get("updated_at_ms")),
+                    ended_at=to_iso(data.get("updated_at_ms") or data.get("updated_at")),
                     note="Opening prompt recovered from the Codex thread index.",
+                    section=sections.get(data.get("thread_section_id")) or ("Pinned" if data.get("is_pinned") else None),
+                    is_subagent=is_subagent(data),
                 )
-                session.prompts.append(
-                    Prompt(
-                        text=text,
-                        source="codex-threads",
-                        session_id=sid,
-                        timestamp=stamp,
-                        project=data.get("cwd"),
-                        git_branch=data.get("git_branch"),
-                        model=data.get("model"),
-                        origin_file=str(db_path),
-                        turn=1,
+                if text and not is_noise(text) and not _looks_like_scaffold(text):
+                    session.prompts.append(
+                        Prompt(
+                            text=text,
+                            source="codex-threads",
+                            session_id=sid,
+                            timestamp=stamp,
+                            project=data.get("cwd"),
+                            git_branch=data.get("git_branch"),
+                            model=data.get("model"),
+                            origin_file=str(db_path),
+                            turn=1,
+                            references=references,
+                            recovery_note=note,
+                        )
                     )
-                )
                 sessions.append(session.finalise())
     return sessions
 
@@ -317,7 +379,7 @@ def cloud_thread_titles(extra_roots: list[str] | None = None) -> list[dict]:
             con = _open_readonly(db_path)
             if con is None:
                 continue
-            with con:
+            with closing(con):
                 cols = _columns(con, "local_thread_catalog")
                 if not {"thread_id", "display_title"} <= cols:
                     continue
@@ -348,9 +410,25 @@ def cloud_thread_titles(extra_roots: list[str] | None = None) -> list[dict]:
 
 
 def collect(extra_roots: list[str] | None = None,
-            include_recovered: bool = True) -> list[Session]:
-    sessions = collect_rollouts(extra_roots)
+            include_recovered: bool = True, include_subagents: bool = False) -> list[Session]:
+    sessions = collect_rollouts(extra_roots, include_subagents)
+    index = collect_thread_index(extra_roots, include_subagents=True)
+    metadata = {s.id: s for s in index}
     if include_recovered:
         sessions += collect_composer_history(extra_roots)
-        sessions += collect_thread_index(extra_roots)
-    return sessions
+        sessions += index
+    for session in sessions:
+        parent = metadata.get(session.id)
+        if parent:
+            session.title = parent.title or session.title
+            session.section = parent.section
+            session.project = session.project or parent.project
+            session.model = session.model or parent.model
+            session.git_branch = session.git_branch or parent.git_branch
+            for prompt in session.prompts:
+                prompt.project = prompt.project or session.project
+                prompt.model = prompt.model or session.model
+                prompt.git_branch = prompt.git_branch or session.git_branch
+    return [s for s in sessions if include_subagents or not (
+        s.is_subagent or (metadata.get(s.id) and metadata[s.id].is_subagent)
+    )]

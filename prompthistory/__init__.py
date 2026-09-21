@@ -23,7 +23,7 @@ from .export import FORMATS, render, write as _write_snapshot
 from .model import Prompt, Session
 from .sync import SyncError, SyncReport
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 __all__ = [
     "PromptHistory",

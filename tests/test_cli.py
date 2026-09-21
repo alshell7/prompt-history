@@ -8,6 +8,40 @@ import pytest
 from prompthistory.cli import main
 
 
+@pytest.mark.parametrize("args", [["--port", "8123", "--no-browser"], ["serve", "--port", "8123", "--no-browser"]])
+def test_configurable_port_reaches_server(machine, monkeypatch, args):
+    seen = []
+    monkeypatch.setattr("prompthistory.server.serve", lambda config, verbose=False: seen.append(config))
+    assert main(args) == 0
+    assert seen[0].port == 8123 and seen[0].open_browser is False
+
+
+@pytest.mark.parametrize("port", ["-1", "65536"])
+def test_invalid_port_explains_valid_range(machine, port):
+    with pytest.raises(SystemExit, match="Port must be between"):
+        main(["serve", "--port", port])
+
+
+def test_port_zero_and_environment_override(machine, monkeypatch):
+    from prompthistory import Config
+    monkeypatch.setenv("PROMPT_HISTORY_PORT", "8888")
+    assert Config.load().port == 8888
+    assert Config.load(port=0).port == 0
+
+
+def test_busy_highest_port_does_not_overflow(machine, monkeypatch):
+    from prompthistory import Config
+    from prompthistory.server import serve
+    ports = []
+    def busy(address, handler):
+        ports.append(address[1])
+        raise OSError("busy")
+    monkeypatch.setattr("prompthistory.server.ThreadingHTTPServer", busy)
+    with pytest.raises(SystemExit, match="65535-65535"):
+        serve(Config(port=65535, open_browser=False))
+    assert ports == [65535]
+
+
 def test_stats(machine, capsys):
     assert main(["stats"]) == 0
     assert "Prompts" in capsys.readouterr().out

@@ -200,6 +200,8 @@ class Config:
             if value is not None:
                 setattr(config, key, cls._coerce(key, value))
 
+        if not 0 <= config.port <= 65535:
+            raise ValueError("Port must be between 0 and 65535 (0 chooses an available port).")
         return config
 
     def to_dict(self) -> dict:

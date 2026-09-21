@@ -22,7 +22,7 @@ def dest(tmp_path):
 
 
 def names(folder):
-    return sorted(str(p.relative_to(folder)) for p in folder.rglob("*") if p.is_file())
+    return sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file())
 
 
 # ----------------------------------------------------------------- layouts

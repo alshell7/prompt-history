@@ -39,6 +39,18 @@ def _fence(text: str) -> str:
     return f"{fence}text\n{text}\n{fence}"
 
 
+def _references(prompt: dict) -> list[str]:
+    """Keep attachment context separate from the verbatim user prompt."""
+    lines = []
+    for reference in prompt.get("references", []):
+        label = reference["label"].replace("[", "\\[").replace("]", "\\]")
+        target = reference["target"].replace("\\", "/").replace("<", "%3C").replace(">", "%3E").replace("\n", "")
+        lines.append(f"Reference: [{label}](<{target}>)")
+    if prompt.get("recovery_note"):
+        lines.append(f"Recovery: {prompt['recovery_note']}")
+    return ["", *lines] if lines else []
+
+
 # ---------------------------------------------------------------- markdown
 def to_markdown(snapshot: dict, heading: str = "Prompt history") -> str:
     stats = snapshot["stats"]
@@ -61,6 +73,8 @@ def to_markdown(snapshot: dict, heading: str = "Prompt history") -> str:
         lines += [f"- Tool: {session['source_label']}"]
         lines += [f"- Project: {session.get('project') or 'none'}"]
         lines += [f"- Session id: `{session['id']}`"]
+        if session.get("section"):
+            lines.append(f"- Section: {session['section']}")
         started, ended = session.get("started_at"), session.get("ended_at")
         if started:
             lines.append(f"- Started: {started}")
@@ -75,6 +89,7 @@ def to_markdown(snapshot: dict, heading: str = "Prompt history") -> str:
         for prompt in prompts:
             when = prompt["timestamp"] or "no timestamp"
             lines += ["", f"### Turn {prompt['turn']} at {when}", "", _fence(prompt["text"])]
+            lines += _references(prompt)
     return "\n".join(lines) + "\n"
 
 
@@ -84,6 +99,8 @@ def session_markdown(session: dict, prompts: list[dict]) -> str:
     lines += [f"- Tool: {session['source_label']}"]
     lines += [f"- Project: {session.get('project') or 'none'}"]
     lines += [f"- Session id: `{session['id']}`"]
+    if session.get("section"):
+        lines.append(f"- Section: {session['section']}")
     if session.get("started_at"):
         lines.append(f"- Started: {session['started_at']}")
     if session.get("model"):
@@ -99,6 +116,7 @@ def session_markdown(session: dict, prompts: list[dict]) -> str:
         lines += ["---", "",
                   f"### Turn {prompt['turn']} at {prompt['timestamp'] or 'no timestamp'}",
                   "", _fence(prompt["text"]), ""]
+        lines += _references(prompt)
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -110,6 +128,7 @@ def day_markdown(day: str, prompts: list[dict]) -> str:
                   f"### {when}  {prompt['tool']}  {prompt['project_name']}", "",
                   f"Session: {prompt['session_title']}  (turn {prompt['turn']})", "",
                   _fence(prompt["text"]), ""]
+        lines += _references(prompt)
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -121,7 +140,7 @@ def to_json(snapshot: dict) -> str:
 CSV_FIELDS = [
     "timestamp", "tool", "source_label", "project", "project_name", "session_id",
     "session_title", "turn", "kind", "words", "chars", "model", "git_branch",
-    "origin_file", "text",
+    "origin_file", "section", "references", "recovery_note", "text",
 ]
 
 
@@ -130,7 +149,9 @@ def to_csv(snapshot: dict) -> str:
     writer = csv.DictWriter(buffer, fieldnames=CSV_FIELDS, extrasaction="ignore")
     writer.writeheader()
     for prompt in snapshot["prompts"]:
-        writer.writerow(prompt)
+        row = dict(prompt)
+        row["references"] = json.dumps(prompt.get("references", []), ensure_ascii=False)
+        writer.writerow(row)
     return buffer.getvalue()
 
 

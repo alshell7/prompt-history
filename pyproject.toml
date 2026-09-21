@@ -1,15 +1,15 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "prompt-history"
-version = "1.1.0"
+version = "1.2.0"
 description = "Read back every prompt you typed into Claude Code and Codex, from your own machine."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 authors = [{ name = "Owais", email = "owaizkhan96@gmail.com" }]
 keywords = [
   "claude", "claude-code", "codex", "openai-codex", "anthropic",
@@ -52,7 +52,7 @@ phist = "prompthistory.cli:main"
 dev = ["pytest>=7", "build>=1.0", "twine>=5"]
 
 [tool.setuptools]
-packages = ["prompthistory", "prompthistory.sources"]
+packages = ["prompthistory", "prompthistory.sources", "prompthistory.web"]
 
 [tool.setuptools.package-data]
 prompthistory = ["web/*.html", "py.typed"]

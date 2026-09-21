@@ -3,6 +3,23 @@
 All notable changes to this project are documented here.
 This project follows [semantic versioning](https://semver.org/).
 
+## [1.2.0] - 2026-09-21
+
+### Packaging
+- Verify installed CLI entry points and bundled browser assets independently of the source checkout.
+- Validate configurable server ports and avoid overflowing the valid port range when retrying busy ports.
+
+### Fixed
+- Exclude Codex approval-review/sub-agent transcripts, injected plugin and browser context,
+  Claude task notifications, and tool traffic from user prompt history.
+- Restore goal objectives from local attachments or surviving saved goal context;
+  keep explicit recovery notes when original content is unavailable.
+- Preserve repeated submissions and distinct projects while merging duplicate sources
+  for the same session. Retain Codex thread titles and sidebar section metadata.
+- Decode attachment headers, voice-input envelopes, and structured user answers.
+- Render safe inline Markdown references, retain original text on copy, and bundle
+  Lobe Codex/Claude icons for offline use.
+
 ## [1.1.0] - 2026-09-21
 
 ### Added

@@ -40,6 +40,18 @@ pip install prompt-history      # or the classic
 
 Python 3.9 or newer. That is the entire dependency list.
 
+For a regular pip installation, both commands are installed into your Python environment's scripts directory and work from any folder:
+
+```bash
+python -m pip install --upgrade prompt-history
+prompt-history --port 8080
+phist --port 8080
+```
+
+If your scripts directory is not on `PATH`, use `python -m prompthistory --port 8080`. For a user-wide isolated command, `pipx install prompt-history` is also supported.
+
+Set the port with `--port 8080`, `PROMPT_HISTORY_PORT=8080`, or `port = 8080` under `[server]` in your config. CLI flags take priority. The default is 7777; if busy, the app tries up to 19 following ports and prints the actual URL. Use `--port 0` to let the OS select an available port, and `--no-browser` to start without opening a tab.
+
 ---
 
 ## Use it
@@ -216,6 +228,12 @@ Config file, then `PROMPT_HISTORY_*` environment variables, then CLI flags. Last
 
 Three Codex rollout formats are supported, current and legacy, because the on-disk shape has changed a few times.
 
+Codex thread titles, projects, and sidebar sections are read from the local thread index when available. Internal approval-review and sub-agent sessions are excluded by default. A prompt you deliberately submit again is kept; duplicate transcript/event representations of the same submission are folded together.
+
+Goal prompts stored as a `goal-objective.md` attachment are expanded back into their objective text. If only saved goal context survives, its objective is recovered once and labeled. Missing or unreadable files are reported alongside the original reference; they are never silently replaced with guessed text. Recovery reads local files only.
+
+The browser renders Markdown links to files, tools, apps, and skills inline, and keeps attachment references below the prompt. Copy preserves the underlying Markdown. Local file and app links depend on your browser and installed application handlers; their targets remain visible on hover. No linked content is fetched automatically.
+
 **Thrown away:** tool results, tool calls, assistant turns, compaction summaries, `[Request interrupted]` markers, sub-agent prompts, and injected context like `<system-reminder>`, `<environment_context>` and `<user_instructions>`. What is left is what you typed.
 
 When a history log repeats a prompt a transcript already has, you see it once. `stats` tells you how many were folded together.
@@ -270,10 +288,13 @@ git clone https://github.com/alshell7/prompt-history
 cd prompt-history
 pip install -e ".[dev]"
 pytest
+node --test tests/web.test.cjs   # reference rendering and link safety
 ```
+
+An optional browser smoke test lives in `tests/browser_smoke.cjs`. With Playwright and Chrome installed, run `node tests/browser_smoke.cjs` to check desktop/mobile rendering, copying, search, project isolation, and offline assets against synthetic data.
 
 Cursor, Aider, Gemini CLI and Zed all keep local transcripts. Pull requests very welcome.
 
 ---
 
-MIT. Icons from [Tabler](https://tabler.io/icons), MIT.
+MIT. Interface icons from [Tabler](https://tabler.io/icons); Codex and Claude icons from [Lobe Icons](https://github.com/lobehub/lobe-icons), bundled offline under MIT. See [third-party notices](THIRD_PARTY_NOTICES.md).

@@ -8,6 +8,9 @@ dist/
 venv/
 .env
 .pytest_cache/
+.test-deps/
+.test-tmp*/
+.qa/
 .coverage
 htmlcov/
 .mypy_cache/

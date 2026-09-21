@@ -204,17 +204,20 @@ class _Handler(BaseHTTPRequestHandler):
 
 def serve(config: Config | None = None, verbose: bool = False) -> None:
     cfg = config or Config.load()
+    if not 0 <= cfg.port <= 65535:
+        raise ValueError("Port must be between 0 and 65535 (0 chooses an available port).")
     handler = type("Handler", (_Handler,), {"config": cfg})
 
     httpd = None
-    for offset in range(20):              # walk forward if the port is busy
+    attempts = min(20, 65536 - cfg.port) if cfg.port else 1
+    for offset in range(attempts):        # walk forward if the port is busy
         try:
             httpd = ThreadingHTTPServer((cfg.host, cfg.port + offset), handler)
             break
         except OSError as exc:
-            if offset == 19:
+            if offset == attempts - 1:
                 raise SystemExit(
-                    f"Could not bind {cfg.host}:{cfg.port}-{cfg.port + 19} ({exc}). "
+                    f"Could not bind {cfg.host}:{cfg.port}-{cfg.port + attempts - 1} ({exc}). "
                     "Pass --port with a free port."
                 )
     assert httpd is not None

@@ -315,6 +315,14 @@ select:hover{border-color:var(--faint)}
   .jump{max-width:180px}
   .facts{width:100%;margin-left:0;margin-top:6px}
 }
+.provider-icon{flex:none;vertical-align:middle}
+.badge{display:inline-flex;align-items:center;gap:5px}
+.body a,.references a{color:var(--ink);text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.body code{font-family:var(--mono);background:var(--bg);padding:1px 3px;border-radius:3px}
+.body pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
+.references,.recovery-note{padding:0 18px 12px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.references a,.reference{display:inline;padding:2px 4px;border-radius:4px;background:var(--bg)}
+.body a:focus-visible,.references a:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
 </style>
 </head>
 <body>
@@ -455,7 +463,10 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
+// Provider SVGs: Lobe Icons (MIT), see THIRD_PARTY_NOTICES.md.
 const ICON = {
+  codex:'<svg class="provider-icon" width="16" height="16" aria-hidden="true" fill="currentColor" fill-rule="evenodd" height="1em" style="flex:none;line-height:1" viewBox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><title>Codex</title><path clip-rule="evenodd" d="M8.086.457a6.105 6.105 0 013.046-.415c1.333.153 2.521.72 3.564 1.7a.117.117 0 00.107.029c1.408-.346 2.762-.224 4.061.366l.063.03.154.076c1.357.703 2.33 1.77 2.918 3.198.278.679.418 1.388.421 2.126a5.655 5.655 0 01-.18 1.631.167.167 0 00.04.155 5.982 5.982 0 011.578 2.891c.385 1.901-.01 3.615-1.183 5.14l-.182.22a6.063 6.063 0 01-2.934 1.851.162.162 0 00-.108.102c-.255.736-.511 1.364-.987 1.992-1.199 1.582-2.962 2.462-4.948 2.451-1.583-.008-2.986-.587-4.21-1.736a.145.145 0 00-.14-.032c-.518.167-1.04.191-1.604.185a5.924 5.924 0 01-2.595-.622 6.058 6.058 0 01-2.146-1.781c-.203-.269-.404-.522-.551-.821a7.74 7.74 0 01-.495-1.283 6.11 6.11 0 01-.017-3.064.166.166 0 00.008-.074.115.115 0 00-.037-.064 5.958 5.958 0 01-1.38-2.202 5.196 5.196 0 01-.333-1.589 6.915 6.915 0 01.188-2.132c.45-1.484 1.309-2.648 2.577-3.493.282-.188.55-.334.802-.438.286-.12.573-.22.861-.304a.129.129 0 00.087-.087A6.016 6.016 0 015.635 2.31C6.315 1.464 7.132.846 8.086.457zm-.804 7.85a.848.848 0 00-1.473.842l1.694 2.965-1.688 2.848a.849.849 0 001.46.864l1.94-3.272a.849.849 0 00.007-.854l-1.94-3.393zm5.446 6.24a.849.849 0 000 1.695h4.848a.849.849 0 000-1.696h-4.848z"></path></svg>',
+  claude:'<svg class="provider-icon" width="16" height="16" aria-hidden="true" fill="currentColor" fill-rule="evenodd" height="1em" style="flex:none;line-height:1" viewBox="0 0 24 24" width="1em" xmlns="http://www.w3.org/2000/svg"><title>Claude</title><path d="M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z"></path></svg>',
   chev:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg>',
   x:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>',
   copy:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2 2 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></svg>',
@@ -530,7 +541,7 @@ function visible(){
   const terms = words();
   return (state.data?.prompts || []).filter((p) => {
     if (state.tool && p.tool !== state.tool) return false;
-    if (state.project && p.project_name !== state.project) return false;
+    if (state.project && (p.project || p.project_name) !== state.project) return false;
     if (state.session && p.session_id !== state.session) return false;
     if (state.kind !== "all" && p.kind !== state.kind) return false;
     if (!terms.length) return true;
@@ -545,13 +556,56 @@ function visible(){
 }
 
 function mark(text){
-  let html = esc(text);
-  for (const term of words()){
-    if (term.length < 2) continue;
-    const safe = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    html = html.replace(new RegExp("(" + safe + ")", "gi"), "<mark>$1</mark>");
+  const terms = words().filter(t => t.length >= 2)
+    .sort((a,b) => b.length - a.length).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!terms.length) return esc(text);
+  const pattern = new RegExp(terms.join("|"), "gi");
+  let out = "", end = 0;
+  for (const match of text.matchAll(pattern)){
+    out += esc(text.slice(end, match.index)) + `<mark>${esc(match[0])}</mark>`;
+    end = match.index + match[0].length;
   }
-  return html;
+  return out + esc(text.slice(end));
+}
+
+function referenceHtml(label, target, project){
+  target = target.trim();
+  let href = target;
+  // Only explicit safe schemes; arbitrary HTML and javascript: stay inert.
+  if (/[\u0000-\u001f\u007f]/.test(target)) { href = "";
+  } else if (/^(?:https?:|mailto:|app:|plugin:|codex:|skill:)/i.test(target)){
+    if (/[\u0000-\u0020]/.test(target)) href = "";
+  } else if (/^(?:[a-z]:[\\/]|\/(?!\/))/i.test(target)) {
+    href = "file:///" + target.replace(/\\/g,"/").replace(/^\//,"").split("/").map((part, i) => i === 0 && /^[a-z]:$/i.test(part) ? part : encodeURIComponent(part)).join("/");
+  } else if (!/^[a-z][a-z0-9+.-]*:/i.test(target) && !target.startsWith("//") && !target.startsWith("\\\\") && project){
+    return referenceHtml(label, project.replace(/[\\/]$/, "") + "/" + target, null);
+  } else { href = ""; }
+  const title = esc(target);
+  return href ? `<a href="${esc(href)}" title="${title}" target="_blank" rel="noopener noreferrer">${mark(label)}</a>`
+    : `<span class="reference" title="${title}">${mark(label)}</span>`;
+}
+
+function renderPrompt(text, project){
+  // A small, escaped Markdown subset. Links are parsed before highlighting so
+  // search terms cannot rewrite URLs or introduce markup into attributes.
+  const token = /(```[^\n]*\n[\s\S]*?(?:```|$)|~~~[^\n]*\n[\s\S]*?(?:~~~|$)|`[^`\n]+`|\[(?:\\.|[^\]\\])+\]\((?:<[^>\n]+>|[^\s()]*(?:\([^\n()]*\)[^\s()]*)*)\)|\*\*[^*\n]+\*\*)/g;
+  let out = "", end = 0;
+  for (const match of text.matchAll(token)){
+    out += mark(text.slice(end, match.index));
+    const value = match[0];
+    if (value.startsWith("```") || value.startsWith("~~~")){
+      out += `<pre><code>${mark(value.replace(/^(?:```|~~~)[^\n]*\n/, "").replace(/(?:```|~~~)$/, ""))}</code></pre>`;
+    } else if (value.startsWith("`")) out += `<code>${mark(value.slice(1,-1))}</code>`;
+    else if (value.startsWith("**")) out += `<strong>${mark(value.slice(2,-2))}</strong>`;
+    else {
+      const split = value.lastIndexOf("](");
+      const label = value.slice(1, split).replace(/\\([\[\]_*`\\])/g,"$1");
+      const target = value.slice(split+2,-1).replace(/^<|>$/g, "");
+      out += referenceHtml(label, target, project);
+    }
+    end = match.index + value.length;
+  }
+  return out + mark(text.slice(end));
 }
 
 /* Filters the server needs in order to narrow a download the same way. */
@@ -583,7 +637,7 @@ function grouped(){
   for (const p of state.data.prompts){
     const tool = (tree[p.tool] ||= {n:0, projects:{}});
     tool.n++;
-    const proj = (tool.projects[p.project_name] ||= {n:0, path:p.project, sessions:{}});
+    const proj = (tool.projects[p.project || p.project_name] ||= {n:0, name:p.project_name, path:p.project, sessions:{}});
     proj.n++;
     const sess = (proj.sessions[p.session_id] ||= {n:0, title:p.session_title, ts:p.ts});
     sess.n++; sess.ts = Math.max(sess.ts, p.ts);
@@ -603,7 +657,7 @@ function branch(opts){
   return `<div class="branch${opts.active ? " on" : ""}">${twist(opts.key, opts.open)}
     <button class="row" ${attrs} aria-current="${!!opts.active}"
       ${opts.title ? `title="${esc(opts.title)}"` : ""}>
-      <span class="name">${esc(opts.name)}</span>
+      ${opts.data?.pick === "tool" ? ICON[opts.name.toLowerCase()] || "" : ""}<span class="name">${esc(opts.name)}</span>
       <span class="n">${opts.count}</span></button></div>`;
 }
 
@@ -628,7 +682,8 @@ function renderTree(){
       const pkey = key + "/" + proj;
       const popen = state.open.has(pkey);
       html += `<li class="lvl1">${branch({
-        name:proj, count:pv.n, key:pkey, open:popen, title:pv.path || proj,
+        name:Object.values(tv.projects).filter(p => p.name === pv.name).length > 1 ? pv.path || pv.name : pv.name,
+        count:pv.n, key:pkey, open:popen, title:pv.path || proj,
         active:state.tool === tool && state.project === proj && !state.session,
         data:{pick:"project", tool, project:proj},
       })}<ul class="${popen ? "open" : ""}">`;
@@ -684,19 +739,22 @@ function entryHtml(p){
   const facts = [
     `turn ${p.turn}`,
     `${p.words} words`,
+    p.section ? `Section: ${p.section}` : "",
     p.model || "",
     p.git_branch || "",
   ].filter(Boolean);
   return `<article class="entry" data-id="${p.id}">
     <div class="head">
-      <span class="badge ${tone}">${esc(p.tool)}</span>
+      <span class="badge ${tone}">${ICON[tone] || ""}${esc(p.tool)}</span>
       <span class="where" title="${esc(p.project || "")}">${esc(p.project_name)}</span>
       <button class="jump" data-jump="${esc(p.session_id)}" data-tool="${esc(p.tool)}"
-        data-project="${esc(p.project_name)}"
+        data-project="${esc(p.project || p.project_name)}"
         title="Show only this session">${esc(p.session_title)}</button>
       <span class="when" title="${esc(full(p.timestamp))}, ${esc(ago(p.timestamp))}">${esc(clock(p.timestamp))}</span>
     </div>
-    <div class="body ${open ? "open" : long ? "clipped" : ""}">${mark(p.text)}</div>
+    <div class="body ${open ? "open" : long ? "clipped" : ""}">${renderPrompt(p.text, p.project)}</div>
+    ${p.references?.length ? `<div class="references" aria-label="Referenced files">${p.references.map(r => referenceHtml(r.label, r.target, p.project)).join(" ")}</div>` : ""}
+    ${p.recovery_note ? `<p class="recovery-note">${esc(p.recovery_note)}</p>` : ""}
     <div class="tools">
       <button class="mini" data-copy="${p.id}">${ICON.copy} Copy</button>
       <button class="mini" data-ctx="${p.id}">Copy with context</button>
@@ -793,6 +851,7 @@ $("list").addEventListener("click", (event) => {
     const block = [
       `Prompt to ${p.tool}`,
       `Session: ${p.session_title} (${p.session_id})`,
+      p.section ? `Section: ${p.section}` : "",
       `Project: ${p.project || p.project_name}`,
       `When: ${full(p.timestamp)}`,
       p.model ? `Model: ${p.model}` : "",

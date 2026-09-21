@@ -12,7 +12,6 @@ can do from a terminal you can also do from Python.
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from datetime import datetime, timezone
 
@@ -40,13 +39,6 @@ TOOL_OF_SOURCE = {
     "codex-history": "Codex",
     "codex-threads": "Codex",
 }
-
-_WHITESPACE = re.compile(r"\s+")
-
-
-def _normalise(text: str) -> str:
-    return _WHITESPACE.sub(" ", text).strip().lower()
-
 
 def _parse_boundary(value: str | None, end_of_day: bool) -> float | None:
     """Accept `2026-01-31` or a full ISO timestamp."""
@@ -97,6 +89,7 @@ class PromptHistory:
             sessions += codex.collect(
                 extra_roots=cfg.codex_homes,
                 include_recovered=cfg.include_recovered,
+                include_subagents=cfg.include_subagents,
             )
 
         sessions, self._duplicates = self._deduplicate(sessions)
@@ -112,40 +105,43 @@ class PromptHistory:
 
     @staticmethod
     def _deduplicate(sessions: list[Session]) -> tuple[list[Session], int]:
-        by_session: dict[str, set[str]] = {}
-        seen_global: dict[str, float] = {}
-
-        for session in sessions:
-            if session.source not in PRIMARY_SOURCES:
-                continue
-            bucket = by_session.setdefault(session.id, set())
-            for prompt in session.prompts:
-                key = _normalise(prompt.text)
-                bucket.add(key)
-                seen_global[key] = epoch(prompt.timestamp)
-
+        # A recovery log can repeat a submission, but the same words in another
+        # project/thread (or twice in one transcript) are distinct user input.
+        merged: dict[tuple[str, str], Session] = {}
         removed = 0
-        kept: list[Session] = []
-        for session in sessions:
-            if session.source in PRIMARY_SOURCES:
-                kept.append(session)
+        ordered = sorted(sessions, key=lambda s: s.source not in PRIMARY_SOURCES)
+        for session in ordered:
+            key = (TOOL_OF_SOURCE.get(session.source, session.source), session.id)
+            parent = merged.get(key)
+            if parent is None:
+                merged[key] = session
                 continue
-            survivors = []
+            counts = Counter(p.text for p in parent.prompts)
             for prompt in session.prompts:
-                key = _normalise(prompt.text)
-                if key in by_session.get(session.id, ()):
-                    removed += 1
-                    continue
-                if key in seen_global:
-                    theirs, ours = seen_global[key], epoch(prompt.timestamp)
-                    if theirs == 0 or ours == 0 or abs(theirs - ours) < 86400:
+                if prompt.text.startswith("/goal Read the Codex goal objective file at "):
+                    targets = {r["target"] for r in prompt.references}
+                    recovered = next((p for p in parent.prompts if p.text.startswith("/goal ")
+                        and not p.text.startswith("/goal Read the Codex goal objective file at ")
+                        and targets.intersection(r["target"] for r in p.references)), None)
+                    if recovered:
                         removed += 1
                         continue
-                survivors.append(prompt)
-            if survivors:
-                session.prompts = survivors
-                kept.append(session.finalise())
-        return kept, removed
+                if counts[prompt.text]:
+                    counts[prompt.text] -= 1
+                    removed += 1
+                else:
+                    parent.prompts.append(prompt)
+            parent.section = parent.section or session.section
+            parent.project = parent.project or session.project
+        # Claude's legacy history lacks session IDs. Match only within the same
+        # project and provider, never globally across unrelated conversations.
+        primary = {(p.project, p.text) for s in sessions if s.source == "claude-code" for p in s.prompts}
+        for session in merged.values():
+            if session.source == "claude-code-history":
+                before = len(session.prompts)
+                session.prompts = [p for p in session.prompts if (p.project, p.text) not in primary]
+                removed += before - len(session.prompts)
+        return [s.finalise() for s in merged.values() if s.prompts], removed
 
     # -- querying -------------------------------------------------------
     def sessions(self) -> list[Session]:
@@ -218,11 +214,10 @@ class PromptHistory:
     # -- presentation ---------------------------------------------------
     def prompt_records(self, **overrides) -> list[dict]:
         """Prompts as plain dicts, with session context folded in."""
-        titles = {s.id: (s.title or s.id) for s in self._ensure()}
-        parents = {s.id: s for s in self._ensure()}
+        parents = {(TOOL_OF_SOURCE.get(s.source), s.id): s for s in self._ensure()}
         records = []
         for prompt in self.prompts(**overrides):
-            parent = parents.get(prompt.session_id)
+            parent = parents.get((TOOL_OF_SOURCE.get(prompt.source), prompt.session_id))
             records.append({
                 "id": prompt.id,
                 "text": prompt.text,
@@ -231,7 +226,7 @@ class PromptHistory:
                 "source_label": SOURCE_LABELS.get(prompt.source, prompt.source),
                 "tool": TOOL_OF_SOURCE.get(prompt.source, "Other"),
                 "session_id": prompt.session_id,
-                "session_title": titles.get(prompt.session_id, prompt.session_id),
+                "session_title": (parent.title or parent.id) if parent else prompt.session_id,
                 "timestamp": prompt.timestamp,
                 "ts": epoch(prompt.timestamp),
                 "project": prompt.project or (parent.project if parent else None),
@@ -243,21 +238,25 @@ class PromptHistory:
                 "words": prompt.words,
                 "chars": prompt.chars,
                 "origin_file": prompt.origin_file,
+                "section": parent.section if parent else None,
+                "references": prompt.references,
+                "recovery_note": prompt.recovery_note,
             })
         return records
 
     def session_records(self, prompts: list[dict] | None = None) -> list[dict]:
         """Sessions that still have prompts after filtering."""
         records = prompts if prompts is not None else self.prompt_records()
-        live = {p["session_id"] for p in records}
-        counts = Counter(p["session_id"] for p in records)
+        live = {(p["tool"], p["session_id"]) for p in records}
+        counts = Counter((p["tool"], p["session_id"]) for p in records)
         out = []
         for session in self._ensure():
-            if session.id not in live:
+            key = (TOOL_OF_SOURCE.get(session.source), session.id)
+            if key not in live:
                 continue
             record = session.to_dict()
             record.pop("prompts", None)
-            record["prompt_count"] = counts[session.id]
+            record["prompt_count"] = counts[key]
             record["source_label"] = SOURCE_LABELS.get(session.source, session.source)
             record["tool"] = TOOL_OF_SOURCE.get(session.source, "Other")
             out.append(record)
@@ -271,7 +270,7 @@ class PromptHistory:
         return {
             "prompts": len(records),
             "sessions": len(sessions),
-            "projects": len({p["project_name"] for p in records}),
+            "projects": len({p["project"] for p in records}),
             "words": sum(p["words"] for p in records),
             "duplicates_removed": self._duplicates,
             "by_tool": dict(Counter(p["tool"] for p in records)),

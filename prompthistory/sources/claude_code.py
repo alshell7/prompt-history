@@ -94,7 +94,8 @@ def _parse_transcript(path: Path, include_subagents: bool) -> Session | None:
                 session.title = session.title or record["summary"]
                 continue
             if kind == "assistant":
-                model = (record.get("message") or {}).get("model")
+                message = record.get("message")
+                model = message.get("model") if isinstance(message, dict) else None
                 if model:
                     session.model = model
                 continue
@@ -109,7 +110,12 @@ def _parse_transcript(path: Path, include_subagents: bool) -> Session | None:
                 continue
 
             message = record.get("message") or {}
-            text = clean_text(_blocks_to_text(message.get("content")))
+            if not isinstance(message, dict) or message.get("role") not in (None, "user"):
+                continue
+            raw = _blocks_to_text(message.get("content"))
+            if raw.lstrip().startswith(("<task-notification", "<task_notification", "<teammate-message")):
+                continue
+            text = clean_text(raw)
             if not text or is_noise(text):
                 continue
 

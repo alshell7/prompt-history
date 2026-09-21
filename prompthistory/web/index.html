@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt History</title>
+<style>
+/* ---------------------------------------------------------------------------
+   One cool-neutral zinc ramp, one temperature, no pure black or white.
+   Colour is reserved for meaning: Claude and Codex badges carry the only hue
+   on the page. Selection and focus use ink, not a tint.
+   Radius scale, used everywhere: surface 10, control 8, pill full.
+   --------------------------------------------------------------------------- */
+:root{
+  --bg:#f4f4f5; --surface:#fcfcfd; --sunken:#f0f0f2; --line:#e3e3e7;
+  --ink:#18181b; --muted:#52525b; --faint:#a1a1aa; --on-ink:#fafafa;
+  --claude:#a3491f; --claude-bg:#f6ece5;
+  --codex:#0d6553; --codex-bg:#e2f0ec;
+  --good:#166534;
+  --r-surface:10px; --r-control:8px; --r-pill:999px;
+  --shadow:0 1px 2px rgba(24,24,27,.05);
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c0c0e; --surface:#141417; --sunken:#1b1b1f; --line:#27272c;
+    --ink:#e7e7ea; --muted:#a1a1aa; --faint:#6e6e78; --on-ink:#0c0c0e;
+    --claude:#e2a37c; --claude-bg:#2b1d14;
+    --codex:#6fcbb2; --codex-bg:#0f2b24;
+    --good:#5fcf8e;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c0c0e; --surface:#141417; --sunken:#1b1b1f; --line:#27272c;
+  --ink:#e7e7ea; --muted:#a1a1aa; --faint:#6e6e78; --on-ink:#0c0c0e;
+  --claude:#e2a37c; --claude-bg:#2b1d14;
+  --codex:#6fcbb2; --codex-bg:#0f2b24;
+  --good:#5fcf8e;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:14px/1.5 var(--sans); -webkit-font-smoothing:antialiased;
+}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+svg{display:block;flex:none}
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:4px}
+
+/* ------------------------------------------------------------------ header */
+header{
+  position:sticky;top:0;z-index:30;background:var(--surface);
+  border-bottom:1px solid var(--line);
+  display:flex;gap:10px;align-items:center;padding:10px 16px;flex-wrap:wrap;
+}
+.wordmark{
+  font-weight:640;letter-spacing:-.015em;white-space:nowrap;margin-right:2px;
+}
+.wordmark span{color:var(--faint);font-weight:500}
+.field{flex:1 1 300px;min-width:180px;position:relative;display:flex;align-items:center}
+.field svg{position:absolute;left:10px;color:var(--faint)}
+.field input{
+  width:100%;padding:8px 68px 8px 32px;border:1px solid var(--line);
+  border-radius:var(--r-control);background:var(--bg);outline:none;
+}
+.field input::placeholder{color:var(--faint)}
+.field input:focus{border-color:var(--ink);outline:none}
+.field .hint{
+  position:absolute;right:9px;font:11px/1 var(--mono);color:var(--faint);
+  border:1px solid var(--line);border-radius:5px;padding:3px 5px;background:var(--surface);
+}
+.field input:focus + .hint{opacity:0}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+  border:1px solid var(--line);background:var(--bg);
+  border-radius:var(--r-control);padding:7px 11px;
+  transition:border-color .12s,background .12s,color .12s;
+}
+.btn:hover{border-color:var(--faint)}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.5;cursor:default;transform:none}
+.btn.solid{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.btn.solid:hover{opacity:.88}
+.btn.icon{padding:7px}
+
+/* ------------------------------------------------------------------ layout */
+.shell{display:flex;gap:16px;padding:16px;max-width:1520px;margin:0 auto;align-items:flex-start}
+aside{
+  flex:0 0 274px;position:sticky;top:69px;max-height:calc(100vh - 85px);
+  overflow-y:auto;overscroll-behavior:contain;
+}
+main{flex:1 1 auto;min-width:0}
+
+/* Metrics read as plain numbers, not as four identical boxes. */
+.metrics{
+  display:grid;grid-template-columns:1fr 1fr;gap:2px 14px;
+  padding:2px 6px 14px;border-bottom:1px solid var(--line);margin-bottom:14px;
+}
+.metric{display:flex;align-items:baseline;gap:6px;padding:3px 0}
+.metric b{font-size:19px;font-weight:620;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.metric span{font-size:12px;color:var(--muted)}
+
+.side-label{
+  font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--faint);padding:0 6px;margin-bottom:6px;
+}
+.tree{list-style:none;margin:0;padding:0}
+.tree ul{list-style:none;margin:0;padding:0;display:none}
+.tree ul.open{display:block}
+.branch{
+  display:flex;align-items:center;border-radius:var(--r-control);
+  transition:background .12s;
+}
+.branch:hover{background:var(--sunken)}
+.branch.on{background:var(--ink);color:var(--on-ink)}
+.row{
+  flex:1;min-width:0;display:flex;align-items:center;gap:8px;text-align:left;
+  border:0;background:none;color:inherit;padding:6px 8px 6px 2px;border-radius:var(--r-control);
+}
+.row .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .n{font:11px/1 var(--mono);color:var(--faint);font-variant-numeric:tabular-nums}
+.branch.on .n{color:var(--on-ink);opacity:.7}
+.twist{
+  border:0;background:none;padding:0;margin-left:6px;width:18px;height:26px;flex:none;
+  display:grid;place-items:center;color:var(--faint);border-radius:4px;
+  transition:transform .12s;
+}
+.twist:hover{color:inherit}
+.twist[aria-expanded="true"]{transform:rotate(90deg)}
+.twist.leaf{visibility:hidden;pointer-events:none}
+.lvl1 > .branch{padding-left:16px}
+.lvl2 > .branch{padding-left:32px}
+.lvl2 .row{font-size:13px}
+
+/* ----------------------------------------------------------------- toolbar */
+.toolbar{
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--line);
+}
+select{
+  border:1px solid var(--line);background:var(--surface);
+  border-radius:var(--r-control);padding:7px 9px;outline:none;
+}
+select:hover{border-color:var(--faint)}
+.spacer{flex:1}
+.count{font:12px/1 var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;
+  border:1px solid var(--line);background:var(--surface);color:var(--muted);
+  border-radius:var(--r-pill);padding:4px 6px 4px 10px;
+}
+.chip:hover{border-color:var(--faint);color:var(--ink)}
+.chip b{font-weight:600;color:var(--ink)}
+.chip svg{color:var(--faint)}
+
+.notice{
+  display:flex;gap:10px;align-items:flex-start;
+  border:1px solid var(--line);border-left:2px solid var(--faint);
+  background:var(--surface);border-radius:var(--r-surface);
+  padding:11px 13px;margin-bottom:12px;font-size:13px;color:var(--muted);
+}
+.notice b{color:var(--ink);font-weight:600}
+
+/* -------------------------------------------------------------------- list
+   One surface, hairlines between rows. No card stack, no nested borders.    */
+.group{
+  display:flex;align-items:baseline;gap:10px;
+  margin:20px 2px 8px;font-size:12px;font-weight:600;color:var(--muted);
+}
+.group:first-child{margin-top:0}
+.group .sub{font-weight:400;color:var(--faint);font-variant-numeric:tabular-nums}
+.group::after{content:"";flex:1;height:1px;background:var(--line)}
+
+.sheet{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-surface);overflow:hidden;box-shadow:var(--shadow);
+}
+.entry{padding:12px 14px;border-top:1px solid var(--line)}
+.entry:first-child{border-top:0}
+.entry:hover{background:var(--sunken)}
+
+.head{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:7px}
+.badge{
+  font:11px/1.4 var(--sans);font-weight:650;padding:3px 8px;
+  border-radius:var(--r-pill);letter-spacing:.005em;
+}
+.badge.claude{background:var(--claude-bg);color:var(--claude)}
+.badge.codex{background:var(--codex-bg);color:var(--codex)}
+.badge.other{background:var(--sunken);color:var(--muted)}
+.where{font-size:13px;font-weight:600;letter-spacing:-.005em}
+.jump{
+  border:0;background:none;padding:0;font-size:13px;color:var(--muted);
+  max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  text-align:left;
+}
+.jump:hover{color:var(--ink);text-decoration:underline}
+.when{margin-left:auto;font:12px/1 var(--mono);color:var(--faint);font-variant-numeric:tabular-nums}
+
+.body{
+  white-space:pre-wrap;overflow-wrap:anywhere;
+  font:13px/1.65 var(--mono);color:var(--ink);
+  max-height:224px;overflow:hidden;position:relative;
+}
+.body.open{max-height:none}
+.body.clipped::after{
+  content:"";position:absolute;inset:auto 0 0 0;height:56px;
+  background:linear-gradient(to bottom,transparent,var(--surface));
+}
+.entry:hover .body.clipped::after{background:linear-gradient(to bottom,transparent,var(--sunken))}
+.body mark{background:var(--ink);color:var(--on-ink);border-radius:2px;padding:0 2px}
+
+.tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px}
+.mini{
+  display:inline-flex;align-items:center;gap:5px;
+  border:1px solid var(--line);background:var(--surface);color:var(--muted);
+  border-radius:var(--r-control);padding:4px 9px;font-size:12px;
+  transition:border-color .12s,color .12s;
+}
+.mini:hover{border-color:var(--faint);color:var(--ink)}
+.mini:active{transform:translateY(1px)}
+.mini.done{border-color:var(--good);color:var(--good)}
+.facts{
+  margin-left:auto;display:flex;gap:14px;
+  font:11px/1 var(--mono);color:var(--faint);font-variant-numeric:tabular-nums;
+}
+
+/* ------------------------------------------------------------ empty states */
+.blank{
+  border:1px dashed var(--line);border-radius:var(--r-surface);
+  padding:52px 24px;text-align:center;color:var(--muted);background:var(--surface);
+}
+.blank h2{margin:0 0 8px;font-size:17px;font-weight:620;color:var(--ink);letter-spacing:-.01em}
+.blank p{margin:0 auto 6px;max-width:58ch;line-height:1.6}
+.blank code{font:12px var(--mono);background:var(--sunken);padding:2px 6px;border-radius:5px}
+
+/* Skeleton mirrors the real row shape, no spinner. */
+.skel{padding:12px 14px;border-top:1px solid var(--line)}
+.skel:first-child{border-top:0}
+.bar{height:9px;border-radius:5px;background:var(--sunken);margin-bottom:9px}
+@media (prefers-reduced-motion:no-preference){
+  .bar{animation:pulse 1.4s ease-in-out infinite}
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+#toast{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(14px);
+  background:var(--ink);color:var(--on-ink);border-radius:var(--r-pill);
+  padding:9px 16px;font-size:13px;opacity:0;pointer-events:none;z-index:60;
+  transition:opacity .15s,transform .15s;max-width:90vw;text-align:center;
+}
+#toast.up{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important}
+  .btn:active,.mini:active{transform:none}
+}
+@media (max-width:900px){
+  .shell{flex-direction:column;padding:12px;gap:12px}
+  aside{position:static;flex:1 1 auto;width:100%;max-height:none;overflow:visible}
+  .metrics{grid-template-columns:repeat(4,auto);justify-content:start;gap:0 22px}
+  .jump{max-width:180px}
+  .facts{width:100%;margin-left:0;margin-top:6px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">Prompt History <span id="ver"></span></div>
+  <div class="field">
+    <label class="sr-only" for="q">Search your prompts</label>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+    <input id="q" type="search" placeholder="Search your prompts" autocomplete="off" spellcheck="false">
+    <span class="hint">press /</span>
+  </div>
+  <button class="btn icon" id="theme" title="Switch theme" aria-label="Switch theme">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></svg>
+  </button>
+  <button class="btn" id="rescan">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/>
+      <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg>
+    Rescan
+  </button>
+</header>
+
+<div class="shell">
+  <aside>
+    <div class="metrics" id="metrics"></div>
+    <div class="side-label">Browse</div>
+    <ul class="tree" id="tree"></ul>
+  </aside>
+
+  <main>
+    <div id="notices"></div>
+    <div class="toolbar" id="toolbar" hidden>
+      <select id="group" aria-label="Grouping">
+        <option value="day">By day</option>
+        <option value="session">By session</option>
+        <option value="none">No grouping</option>
+      </select>
+      <select id="kind" aria-label="Entry type">
+        <option value="all">All entries</option>
+        <option value="prompt">Prompts only</option>
+        <option value="slash-command">Slash commands</option>
+      </select>
+      <select id="sort" aria-label="Sort order">
+        <option value="new">Newest first</option>
+        <option value="old">Oldest first</option>
+        <option value="long">Longest first</option>
+      </select>
+      <span class="spacer"></span>
+      <span class="count" id="count"></span>
+      <button class="btn" id="copyAll">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/>
+          <path d="M4.012 16.737a2 2 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></svg>
+        Copy all
+      </button>
+      <button class="btn solid" id="zip">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/>
+          <path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>
+        Download zip
+      </button>
+      <select id="single" aria-label="Download one file">
+        <option value="">Single file</option>
+        <option value="md">Markdown</option>
+        <option value="json">JSON</option>
+        <option value="csv">CSV</option>
+        <option value="txt">Plain text</option>
+      </select>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="list"></div>
+  </main>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+const PAGE = 60;
+const state = {
+  data:null, q:"", tool:null, project:null, session:null,
+  kind:"all", sort:"new", group:"day", limit:PAGE,
+  open:new Set(), open_ids:new Set(),
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const ICON = {
+  chev:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg>',
+  x:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6l-12 12"/><path d="M6 6l12 12"/></svg>',
+  copy:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z"/><path d="M4.012 16.737a2 2 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1"/></svg>',
+  info:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/></svg>',
+};
+
+/* ------------------------------------------------------------------- time */
+const when = (iso) => iso ? new Date(iso) : null;
+const clock = (iso) => { const d = when(iso);
+  return (!d || isNaN(d)) ? "no time" : d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); };
+const full = (iso) => { const d = when(iso);
+  return (!d || isNaN(d)) ? "no timestamp recorded"
+    : d.toLocaleString([], {dateStyle:"full", timeStyle:"short"}); };
+const dayOf = (iso) => { const d = when(iso);
+  return (!d || isNaN(d)) ? "Undated"
+    : d.toLocaleDateString([], {weekday:"long", day:"numeric", month:"long", year:"numeric"}); };
+function ago(iso){
+  const d = when(iso); if (!d || isNaN(d)) return "";
+  const s = (Date.now() - d.getTime()) / 1000;
+  if (s < 90) return "just now";
+  if (s < 3600) return Math.round(s/60) + " minutes ago";
+  if (s < 86400) return Math.round(s/3600) + " hours ago";
+  return Math.round(s/86400) + " days ago";
+}
+
+/* -------------------------------------------------------------- clipboard */
+async function toClipboard(text){
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.setAttribute("readonly","");
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy"); ta.remove();
+    if (ok) return true;
+  } catch (e) {}
+  return false;
+}
+function selectNode(node){
+  if (!node) return false;
+  const range = document.createRange(); range.selectNodeContents(node);
+  const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  return true;
+}
+async function copy(text, btn, label, fallbackNode){
+  const ok = await toClipboard(text);
+  if (btn){
+    const original = btn.dataset.label || btn.innerHTML;
+    btn.dataset.label = original;
+    btn.textContent = ok ? "Copied" : "Press control C";
+    btn.classList.toggle("done", ok);
+    setTimeout(() => { btn.innerHTML = original; btn.classList.remove("done"); }, 1500);
+  }
+  if (ok) toast(label || "Copied");
+  else toast(selectNode(fallbackNode)
+    ? "This browser blocked the clipboard. The text is selected, press copy on your keyboard."
+    : "This browser blocked the clipboard.");
+  return ok;
+}
+let toastTimer;
+function toast(message){
+  const el = $("toast");
+  el.textContent = message; el.classList.add("up");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("up"), 2800);
+}
+
+/* --------------------------------------------------------------- filtering */
+const words = () => state.q.toLowerCase().split(/\s+/).filter(Boolean);
+
+function visible(){
+  const terms = words();
+  return (state.data?.prompts || []).filter((p) => {
+    if (state.tool && p.tool !== state.tool) return false;
+    if (state.project && p.project_name !== state.project) return false;
+    if (state.session && p.session_id !== state.session) return false;
+    if (state.kind !== "all" && p.kind !== state.kind) return false;
+    if (!terms.length) return true;
+    const hay = p.text.toLowerCase();
+    return terms.every((t) => hay.includes(t));
+  }).sort((a, b) => {
+    if (state.sort === "long") return b.chars - a.chars;
+    if (state.group === "session" && a.session_id === b.session_id) return a.turn - b.turn;
+    if (state.sort === "old") return a.ts - b.ts || a.turn - b.turn;
+    return b.ts - a.ts || b.turn - a.turn;
+  });
+}
+
+function mark(text){
+  let html = esc(text);
+  for (const term of words()){
+    if (term.length < 2) continue;
+    const safe = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    html = html.replace(new RegExp("(" + safe + ")", "gi"), "<mark>$1</mark>");
+  }
+  return html;
+}
+
+/* Filters the server needs in order to narrow a download the same way. */
+function queryString(){
+  const params = new URLSearchParams();
+  if (state.q) params.set("search", state.q);
+  if (state.tool) params.set("tool", state.tool.toLowerCase());
+  if (state.project) params.set("projects", state.project);
+  const s = params.toString();
+  return s ? "?" + s : "";
+}
+
+/* ----------------------------------------------------------------- sidebar */
+function renderMetrics(){
+  const s = state.data.stats;
+  const cells = [
+    [s.prompts, s.prompts === 1 ? "prompt" : "prompts"],
+    [s.sessions, s.sessions === 1 ? "session" : "sessions"],
+    [s.projects, s.projects === 1 ? "project" : "projects"],
+    [Object.keys(s.by_tool).length, "tools"],
+  ];
+  $("metrics").innerHTML = cells
+    .map(([n, label]) => `<div class="metric"><b>${n}</b><span>${label}</span></div>`)
+    .join("");
+}
+
+function grouped(){
+  const tree = {};
+  for (const p of state.data.prompts){
+    const tool = (tree[p.tool] ||= {n:0, projects:{}});
+    tool.n++;
+    const proj = (tool.projects[p.project_name] ||= {n:0, path:p.project, sessions:{}});
+    proj.n++;
+    const sess = (proj.sessions[p.session_id] ||= {n:0, title:p.session_title, ts:p.ts});
+    sess.n++; sess.ts = Math.max(sess.ts, p.ts);
+  }
+  return tree;
+}
+
+function twist(key, open){
+  if (!key) return `<span class="twist leaf" aria-hidden="true">${ICON.chev}</span>`;
+  return `<button class="twist" data-twist="${esc(key)}" aria-expanded="${open}"
+    aria-label="${open ? "Collapse" : "Expand"}">${ICON.chev}</button>`;
+}
+
+function branch(opts){
+  const attrs = Object.entries(opts.data || {})
+    .map(([k, v]) => `data-${k}="${esc(v)}"`).join(" ");
+  return `<div class="branch${opts.active ? " on" : ""}">${twist(opts.key, opts.open)}
+    <button class="row" ${attrs} aria-current="${!!opts.active}"
+      ${opts.title ? `title="${esc(opts.title)}"` : ""}>
+      <span class="name">${esc(opts.name)}</span>
+      <span class="n">${opts.count}</span></button></div>`;
+}
+
+function renderTree(){
+  const tree = grouped();
+  const all = state.data.prompts.length;
+  const noFilter = !state.tool && !state.project && !state.session;
+  let html = `<li>${branch({
+    name:"All prompts", count:all, active:noFilter, data:{pick:"all"},
+  })}</li>`;
+
+  for (const [tool, tv] of Object.entries(tree).sort((a, b) => b[1].n - a[1].n)){
+    const key = "t:" + tool;
+    const open = state.open.has(key);
+    html += `<li>${branch({
+      name:tool, count:tv.n, key, open,
+      active:state.tool === tool && !state.project,
+      data:{pick:"tool", tool},
+    })}<ul class="${open ? "open" : ""}">`;
+
+    for (const [proj, pv] of Object.entries(tv.projects).sort((a, b) => b[1].n - a[1].n)){
+      const pkey = key + "/" + proj;
+      const popen = state.open.has(pkey);
+      html += `<li class="lvl1">${branch({
+        name:proj, count:pv.n, key:pkey, open:popen, title:pv.path || proj,
+        active:state.tool === tool && state.project === proj && !state.session,
+        data:{pick:"project", tool, project:proj},
+      })}<ul class="${popen ? "open" : ""}">`;
+
+      for (const [sid, sv] of Object.entries(pv.sessions).sort((a, b) => b[1].ts - a[1].ts)){
+        html += `<li class="lvl2">${branch({
+          name:sv.title || sid, count:sv.n, title:sv.title,
+          active:state.session === sid,
+          data:{pick:"session", tool, project:proj, session:sid},
+        })}</li>`;
+      }
+      html += `</ul></li>`;
+    }
+    html += `</ul></li>`;
+  }
+  $("tree").innerHTML = html;
+}
+
+$("tree").addEventListener("click", (event) => {
+  const toggle = event.target.closest("[data-twist]");
+  if (toggle){
+    const key = toggle.dataset.twist;
+    state.open.has(key) ? state.open.delete(key) : state.open.add(key);
+    renderTree();
+    return;
+  }
+  const row = event.target.closest(".row");
+  if (!row) return;
+  state.limit = PAGE;
+  const pick = row.dataset.pick;
+  if (pick === "all"){ state.tool = state.project = state.session = null; }
+  if (pick === "tool"){
+    state.tool = row.dataset.tool; state.project = state.session = null;
+    state.open.add("t:" + state.tool);
+  }
+  if (pick === "project"){
+    state.tool = row.dataset.tool; state.project = row.dataset.project; state.session = null;
+    state.open.add("t:" + state.tool);
+    state.open.add("t:" + state.tool + "/" + state.project);
+  }
+  if (pick === "session"){
+    state.tool = row.dataset.tool; state.project = row.dataset.project;
+    state.session = row.dataset.session;
+  }
+  renderTree(); renderList();
+});
+
+/* -------------------------------------------------------------------- list */
+function entryHtml(p){
+  const tone = p.tool === "Claude" ? "claude" : p.tool === "Codex" ? "codex" : "other";
+  const long = p.text.length > 620 || p.text.split("\n").length > 11;
+  const open = state.open_ids.has(p.id);
+  const facts = [
+    `turn ${p.turn}`,
+    `${p.words} words`,
+    p.model || "",
+    p.git_branch || "",
+  ].filter(Boolean);
+  return `<article class="entry" data-id="${p.id}">
+    <div class="head">
+      <span class="badge ${tone}">${esc(p.tool)}</span>
+      <span class="where" title="${esc(p.project || "")}">${esc(p.project_name)}</span>
+      <button class="jump" data-jump="${esc(p.session_id)}" data-tool="${esc(p.tool)}"
+        data-project="${esc(p.project_name)}"
+        title="Show only this session">${esc(p.session_title)}</button>
+      <span class="when" title="${esc(full(p.timestamp))}, ${esc(ago(p.timestamp))}">${esc(clock(p.timestamp))}</span>
+    </div>
+    <div class="body ${open ? "open" : long ? "clipped" : ""}">${mark(p.text)}</div>
+    <div class="tools">
+      <button class="mini" data-copy="${p.id}">${ICON.copy} Copy</button>
+      <button class="mini" data-ctx="${p.id}">Copy with context</button>
+      ${long ? `<button class="mini" data-open="${p.id}">${open ? "Collapse" : "Show all"}</button>` : ""}
+      <span class="facts">${facts.map((f) => `<span>${esc(f)}</span>`).join("")}</span>
+    </div>
+  </article>`;
+}
+
+function renderChips(){
+  const bits = [];
+  const chip = (what, label, value) =>
+    `<button class="chip" data-drop="${what}">${label} <b>${esc(value)}</b> ${ICON.x}</button>`;
+  if (state.tool) bits.push(chip("tool", "Tool", state.tool));
+  if (state.project) bits.push(chip("project", "Project", state.project));
+  if (state.session){
+    const s = state.data.sessions.find((x) => x.id === state.session);
+    bits.push(chip("session", "Session", s ? (s.title || s.id) : state.session));
+  }
+  if (state.q) bits.push(chip("q", "Search", state.q));
+  $("chips").innerHTML = bits.join("");
+}
+
+function renderList(){
+  renderChips();
+  const rows = visible();
+  $("count").textContent = `${rows.length} of ${state.data.prompts.length}`;
+
+  if (!rows.length){
+    $("list").innerHTML = state.data.prompts.length
+      ? `<div class="blank"><h2>Nothing matches</h2>
+         <p>Try fewer words, or clear a filter above.</p></div>`
+      : "";
+    return;
+  }
+
+  const page = rows.slice(0, state.limit);
+  let html = "", current = null, buffer = [];
+  const flush = () => {
+    if (!buffer.length) return;
+    html += `<div class="sheet">${buffer.join("")}</div>`;
+    buffer = [];
+  };
+
+  for (const p of page){
+    if (state.group !== "none"){
+      const key = state.group === "day" ? dayOf(p.timestamp)
+                                        : `${p.session_title}`;
+      if (key !== current){
+        flush();
+        current = key;
+        const sub = state.group === "day" ? "" : esc(p.project_name);
+        html += `<div class="group">${esc(key)}${sub ? `<span class="sub">${sub}</span>` : ""}</div>`;
+      }
+    }
+    buffer.push(entryHtml(p));
+  }
+  flush();
+
+  if (rows.length > state.limit){
+    const rest = rows.length - state.limit;
+    html += `<div style="text-align:center;margin:16px 0">
+      <button class="btn" id="more">Show ${Math.min(PAGE, rest)} more, ${rest} left</button></div>`;
+  }
+  $("list").innerHTML = html;
+  const more = $("more");
+  if (more) more.onclick = () => { state.limit += PAGE; renderList(); };
+}
+
+$("chips").addEventListener("click", (event) => {
+  const chip = event.target.closest(".chip");
+  if (!chip) return;
+  const drop = chip.dataset.drop;
+  if (drop === "q"){ state.q = ""; $("q").value = ""; }
+  else if (drop === "tool"){ state.tool = state.project = state.session = null; }
+  else if (drop === "project"){ state.project = state.session = null; }
+  else state.session = null;
+  state.limit = PAGE;
+  renderTree(); renderList();
+});
+
+$("list").addEventListener("click", (event) => {
+  const find = (id) => state.data.prompts.find((p) => p.id === id);
+
+  const copyBtn = event.target.closest("[data-copy]");
+  if (copyBtn){
+    const node = copyBtn.closest(".entry").querySelector(".body");
+    copy(find(copyBtn.dataset.copy).text, copyBtn, "Prompt copied", node);
+    return;
+  }
+  const ctxBtn = event.target.closest("[data-ctx]");
+  if (ctxBtn){
+    const p = find(ctxBtn.dataset.ctx);
+    const block = [
+      `Prompt to ${p.tool}`,
+      `Session: ${p.session_title} (${p.session_id})`,
+      `Project: ${p.project || p.project_name}`,
+      `When: ${full(p.timestamp)}`,
+      p.model ? `Model: ${p.model}` : "",
+      "", p.text, "",
+    ].filter((line) => line !== "").join("\n");
+    copy(block, ctxBtn, "Prompt and context copied",
+         ctxBtn.closest(".entry").querySelector(".body"));
+    return;
+  }
+  const openBtn = event.target.closest("[data-open]");
+  if (openBtn){
+    const id = openBtn.dataset.open;
+    state.open_ids.has(id) ? state.open_ids.delete(id) : state.open_ids.add(id);
+    renderList();
+    return;
+  }
+  const jumpBtn = event.target.closest("[data-jump]");
+  if (jumpBtn){
+    state.tool = jumpBtn.dataset.tool;
+    state.project = jumpBtn.dataset.project;
+    state.session = jumpBtn.dataset.jump;
+    state.limit = PAGE;
+    state.open.add("t:" + state.tool);
+    state.open.add("t:" + state.tool + "/" + state.project);
+    renderTree(); renderList();
+    window.scrollTo({top:0, behavior:"smooth"});
+  }
+});
+
+/* ---------------------------------------------------------------- download */
+function pull(url, note){
+  const a = document.createElement("a");
+  a.href = url; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+  toast(note);
+}
+$("zip").addEventListener("click", () => {
+  pull("/api/download.zip" + queryString(),
+       "Building the archive, your browser will save it in a moment.");
+});
+$("single").addEventListener("change", (event) => {
+  const fmt = event.target.value;
+  event.target.value = "";
+  if (!fmt) return;
+  pull(`/api/export.${fmt}` + queryString(), `Downloading ${fmt.toUpperCase()}`);
+});
+$("copyAll").addEventListener("click", (event) => {
+  const rows = visible();
+  if (!rows.length) return toast("Nothing to copy");
+  copy(rows.map((p) => p.text).join("\n\n\n"), event.currentTarget,
+       `Copied ${rows.length} ${rows.length === 1 ? "prompt" : "prompts"}`);
+});
+
+/* ---------------------------------------------------------------- notices */
+function renderNotices(){
+  const s = state.data.stats;
+  const out = [];
+  if (s.cloud_threads){
+    out.push(`<div class="notice">${ICON.info}<div>
+      <b>${s.cloud_threads} Codex threads synced from ChatGPT</b> are listed in the local
+      catalog, but only their titles and dates live on this machine. The prompt text is
+      held server side, so those threads are not shown or exported here.</div></div>`);
+  }
+  if (!s.prompts){
+    const roots = (s.scanned_roots || []).map((r) => `<code>${esc(r)}</code>`).join(" ");
+    out.push(`<div class="blank"><h2>No prompts on this machine yet</h2>
+      <p>Claude Code transcripts are read from <code>~/.claude/projects</code> and Codex
+      sessions from <code>~/.codex/sessions</code>.</p>
+      <p>Scanned: ${roots || "<code>nothing</code>"}</p>
+      <p>Run a session in either tool, then press Rescan.</p></div>`);
+  }
+  $("notices").innerHTML = out.join("");
+}
+
+/* ----------------------------------------------------------------- wiring */
+let typing;
+$("q").addEventListener("input", (event) => {
+  clearTimeout(typing);
+  typing = setTimeout(() => {
+    state.q = event.target.value.trim();
+    state.limit = PAGE;
+    renderList();
+  }, 110);
+});
+for (const id of ["kind", "sort", "group"]){
+  $(id).addEventListener("change", (event) => {
+    state[id] = event.target.value; state.limit = PAGE; renderList();
+  });
+}
+document.addEventListener("keydown", (event) => {
+  if (event.key === "/" && document.activeElement !== $("q")){
+    event.preventDefault(); $("q").focus();
+  }
+  if (event.key === "Escape" && document.activeElement === $("q")) $("q").blur();
+});
+$("theme").addEventListener("click", () => {
+  const now = document.documentElement.dataset.theme || "auto";
+  const next = now === "dark" ? "light" : now === "light" ? "auto" : "dark";
+  if (next === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("ph-theme", next); } catch (e) {}
+  toast("Theme set to " + next);
+});
+try {
+  const saved = localStorage.getItem("ph-theme");
+  if (saved && saved !== "auto") document.documentElement.dataset.theme = saved;
+} catch (e) {}
+
+function skeleton(){
+  const widths = ["72%", "94%", "61%", "88%", "45%"];
+  const rows = widths.map((w, i) => `<div class="skel">
+      <div class="bar" style="width:30%;height:11px"></div>
+      <div class="bar" style="width:${w}"></div>
+      <div class="bar" style="width:${(i % 2) ? "52%" : "76%"}"></div>
+    </div>`).join("");
+  $("list").innerHTML = `<div class="sheet">${rows}</div>`;
+}
+
+async function load(){
+  skeleton();
+  let data;
+  try {
+    const response = await fetch("/api/data");
+    data = await response.json();
+  } catch (error) {
+    $("list").innerHTML = `<div class="blank"><h2>Lost the connection</h2>
+      <p>The local server stopped answering. Restart it with
+      <code>prompt-history</code> and reload this page.</p></div>`;
+    return;
+  }
+  if (data.error){
+    $("list").innerHTML = `<div class="blank"><h2>The scan failed</h2>
+      <p><code>${esc(data.error)}</code></p></div>`;
+    return;
+  }
+  state.data = data;
+  $("toolbar").hidden = !data.prompts.length;
+  renderMetrics(); renderNotices(); renderTree(); renderList();
+}
+
+$("rescan").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  await load();
+  button.disabled = false;
+  toast("Rescanned");
+});
+
+load();
+</script>
+</body>
+</html>

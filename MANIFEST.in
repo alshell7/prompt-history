@@ -1,0 +1,5 @@
+include LICENSE README.md CHANGELOG.md
+include prompthistory/py.typed
+recursive-include prompthistory/web *.html
+recursive-include tests *.py
+global-exclude __pycache__ *.py[cod]

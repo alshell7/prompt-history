@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prompt-history"
+version = "1.0.0"
+description = "Read back every prompt you typed into Claude Code and Codex, from your own machine."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Owais", email = "owaizkhan96@gmail.com" }]
+keywords = [
+  "claude", "claude-code", "codex", "openai-codex", "anthropic",
+  "prompts", "prompt-history", "prompt-engineering", "llm", "ai",
+  "transcript", "export", "cli", "developer-tools",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "Natural Language :: English",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Utilities",
+  "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/alshell7/prompt-history"
+Source = "https://github.com/alshell7/prompt-history"
+Issues = "https://github.com/alshell7/prompt-history/issues"
+Changelog = "https://github.com/alshell7/prompt-history/blob/main/CHANGELOG.md"
+
+[project.scripts]
+prompt-history = "prompthistory.cli:main"
+phist = "prompthistory.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "build>=1.0", "twine>=5"]
+
+[tool.setuptools]
+packages = ["prompthistory", "prompthistory.sources"]
+
+[tool.setuptools.package-data]
+prompthistory = ["web/*.html", "py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

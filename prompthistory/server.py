@@ -12,6 +12,7 @@ import webbrowser
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from socketserver import TCPServer
 from urllib.parse import parse_qs, urlparse
 
 from .api import PromptHistory
@@ -21,6 +22,15 @@ from .folderpick import pick_folder
 from .sync import SyncError
 
 WEB_DIR = Path(__file__).parent / "web"
+
+
+class _LocalHTTPServer(ThreadingHTTPServer):
+    def server_bind(self):
+        # HTTPServer normally reverse-resolves the bind address. That can stall
+        # localhost startup on macOS or disconnected machines; we do not need a
+        # DNS name to serve this local app.
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
 # Query parameters the UI may pass through to narrow a download.
 FILTER_KEYS = ("search", "tool", "since", "until", "projects",
@@ -212,7 +222,7 @@ def serve(config: Config | None = None, verbose: bool = False) -> None:
     attempts = min(20, 65536 - cfg.port) if cfg.port else 1
     for offset in range(attempts):        # walk forward if the port is busy
         try:
-            httpd = ThreadingHTTPServer((cfg.host, cfg.port + offset), handler)
+            httpd = _LocalHTTPServer((cfg.host, cfg.port + offset), handler)
             break
         except OSError as exc:
             if offset == attempts - 1:

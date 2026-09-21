@@ -8,6 +8,7 @@ This project follows [semantic versioning](https://semver.org/).
 ### Packaging
 - Verify installed CLI entry points and bundled browser assets independently of the source checkout.
 - Validate configurable server ports and avoid overflowing the valid port range when retrying busy ports.
+- Avoid unnecessary reverse DNS during local server startup, including on macOS.
 
 ### Fixed
 - Exclude Codex approval-review/sub-agent transcripts, injected plugin and browser context,

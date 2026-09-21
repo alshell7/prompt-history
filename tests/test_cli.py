@@ -36,10 +36,20 @@ def test_busy_highest_port_does_not_overflow(machine, monkeypatch):
     def busy(address, handler):
         ports.append(address[1])
         raise OSError("busy")
-    monkeypatch.setattr("prompthistory.server.ThreadingHTTPServer", busy)
+    monkeypatch.setattr("prompthistory.server._LocalHTTPServer", busy)
     with pytest.raises(SystemExit, match="65535-65535"):
         serve(Config(port=65535, open_browser=False))
     assert ports == [65535]
+
+
+def test_local_server_does_not_need_reverse_dns(monkeypatch):
+    from prompthistory.server import _LocalHTTPServer, _Handler
+    def no_dns(*args):
+        raise AssertionError("Local startup must not wait for reverse DNS")
+    monkeypatch.setattr("socket.getfqdn", no_dns)
+    with _LocalHTTPServer(("127.0.0.1", 0), _Handler) as server:
+        assert server.server_name == "127.0.0.1"
+        assert server.server_port > 0
 
 
 def test_stats(machine, capsys):

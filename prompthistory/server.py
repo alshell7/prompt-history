@@ -15,14 +15,28 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .api import PromptHistory
-from .config import Config
+from .config import Config, read_sync_state, write_sync_state
 from .export import build_zip_bytes, render
+from .folderpick import pick_folder
+from .sync import SyncError
 
 WEB_DIR = Path(__file__).parent / "web"
 
 # Query parameters the UI may pass through to narrow a download.
 FILTER_KEYS = ("search", "tool", "since", "until", "projects",
                "exclude_projects", "min_words", "max_words")
+
+
+def _auto_sync(config: Config, history: PromptHistory) -> dict | None:
+    """Mirror to the sync folder when the user has switched that on."""
+    if not (config.sync_enabled and config.sync_folder):
+        return None
+    try:
+        return history.sync().to_dict()
+    except SyncError as exc:
+        return {"error": str(exc)}
+    except OSError as exc:
+        return {"error": f"Could not write to the sync folder: {exc}"}
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -77,7 +91,17 @@ class _Handler(BaseHTTPRequestHandler):
 
         if path == "/api/data":
             try:
-                payload = PromptHistory(self.config).snapshot()
+                config = Config.load()        # pick up UI changes to sync.json
+                self.__class__.config = config
+                history = PromptHistory(config)
+                payload = history.snapshot()
+                payload["sync"] = {
+                    **{k: getattr(config, k) for k in (
+                        "sync_folder", "sync_enabled", "sync_layout",
+                        "sync_include_tool", "sync_format", "sync_prune")},
+                    "picker": True,
+                    "last": _auto_sync(config, history),
+                }
             except Exception as exc:          # a bad source must not blank the UI
                 payload = {"error": f"{type(exc).__name__}: {exc}"}
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -116,6 +140,67 @@ class _Handler(BaseHTTPRequestHandler):
 
         self._send(404, b"Not found", "text/plain; charset=utf-8")
 
+    def _json(self, status: int, payload: dict) -> None:
+        self._send(status, json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                   "application/json; charset=utf-8")
+
+    def _body(self) -> dict:
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return {}
+        if not length:
+            return {}
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def do_POST(self):  # noqa: N802
+        path = urlparse(self.path).path
+
+        # Open a native folder chooser on this machine and return the path.
+        if path == "/api/sync/pick":
+            chosen, error = pick_folder()
+            self._json(200, {"folder": chosen, "error": error})
+            return
+
+        if path == "/api/sync/settings":
+            body = self._body()
+            allowed = ("sync_folder", "sync_enabled", "sync_layout",
+                       "sync_include_tool", "sync_format", "sync_prune")
+            values = {k: v for k, v in body.items() if k in allowed}
+            try:
+                write_sync_state(values)
+            except OSError as exc:
+                self._json(500, {"error": f"Could not save settings: {exc}"})
+                return
+            self.__class__.config = Config.load()
+            self._json(200, {"saved": read_sync_state()})
+            return
+
+        if path == "/api/sync/run":
+            body = self._body()
+            config = Config.load()
+            self.__class__.config = config
+            history = PromptHistory(config)
+            try:
+                report = history.sync(
+                    body.get("folder") or config.sync_folder,
+                    dry_run=bool(body.get("dry_run")),
+                )
+            except SyncError as exc:
+                self._json(400, {"error": str(exc)})
+                return
+            except OSError as exc:
+                self._json(500, {"error": f"Could not write to the folder: {exc}"})
+                return
+            self._json(200, report.to_dict())
+            return
+
+        self._send(404, b"Not found", "text/plain; charset=utf-8")
+
 
 def serve(config: Config | None = None, verbose: bool = False) -> None:
     cfg = config or Config.load()
@@ -134,6 +219,13 @@ def serve(config: Config | None = None, verbose: bool = False) -> None:
                 )
     assert httpd is not None
     httpd.verbose = verbose
+
+    if cfg.sync_enabled and cfg.sync_folder:
+        report = _auto_sync(cfg, PromptHistory(cfg))
+        if report and report.get("error"):
+            print(f"Sync skipped: {report['error']}", flush=True)
+        elif report:
+            print(f"Synced to {report['folder']}. {report['summary']}", flush=True)
 
     url = f"http://{cfg.host}:{httpd.server_address[1]}/"
     print(f"Prompt History is running at {url}", flush=True)

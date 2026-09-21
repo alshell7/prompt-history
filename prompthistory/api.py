@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 
 from .config import Config
 from .model import Prompt, Session, epoch, project_name
+from .sync import SyncReport, sync as _sync_to_folder
 from .sources import claude_code, codex
 
 # Sources holding a full transcript. Everything else is a recovery log that may
@@ -290,6 +291,29 @@ class PromptHistory:
                 if cfg.codex else []
             ),
         }
+
+    # -- folder sync ----------------------------------------------------
+    def sync(self, folder: str | None = None, *, layout: str | None = None,
+             include_tool: bool | None = None, fmt: str | None = None,
+             prune: bool | None = None, dry_run: bool = False,
+             **overrides) -> SyncReport:
+        """Mirror the current view into a folder on disk.
+
+        Defaults come from the config, so `ph.sync()` is enough once a folder
+        is set. Filter keywords narrow what gets written, exactly as in
+        `prompts()`.
+        """
+        cfg = self.config
+        return _sync_to_folder(
+            self.snapshot(**overrides),
+            folder if folder is not None else cfg.sync_folder,
+            layout=layout if layout is not None else cfg.sync_layout,
+            include_tool=(include_tool if include_tool is not None
+                          else cfg.sync_include_tool),
+            fmt=fmt if fmt is not None else cfg.sync_format,
+            prune=prune if prune is not None else cfg.sync_prune,
+            dry_run=dry_run,
+        )
 
     def snapshot(self, **overrides) -> dict:
         """Everything the UI and the exporters need, in one dict."""

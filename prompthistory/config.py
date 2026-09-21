@@ -38,6 +38,37 @@ def config_home() -> Path:
     return base / "prompt-history"
 
 
+SYNC_STATE_NAME = "sync.json"
+
+SYNC_KEYS = ("sync_folder", "sync_enabled", "sync_layout",
+             "sync_include_tool", "sync_format", "sync_prune")
+
+
+def sync_state_path() -> Path:
+    """Sync settings the UI manages, kept apart from your hand written config."""
+    return config_home() / SYNC_STATE_NAME
+
+
+def read_sync_state() -> dict:
+    path = sync_state_path()
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return {k: v for k, v in data.items() if k in SYNC_KEYS} if isinstance(data, dict) else {}
+
+
+def write_sync_state(values: dict) -> Path:
+    path = sync_state_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    current = read_sync_state()
+    current.update({k: v for k, v in values.items() if k in SYNC_KEYS})
+    path.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
 def default_config_path() -> Path:
     """Where `config --init` writes, given what this interpreter can read."""
     return config_home() / ("config.toml" if HAVE_TOML else "config.json")
@@ -89,6 +120,14 @@ class Config:
     export_format: str = "md"
     output: str | None = None
 
+    # --- folder sync ---------------------------------------------------
+    sync_folder: str | None = None
+    sync_enabled: bool = False          # mirror automatically on every scan
+    sync_layout: str = "project"        # project | session | single
+    sync_include_tool: bool = True      # tool/project/... or project/...
+    sync_format: str = "md"             # md | txt | json | csv
+    sync_prune: bool = True             # remove files a previous sync wrote
+
     _source: str | None = None          # where these values came from
 
     # ------------------------------------------------------------------
@@ -137,6 +176,10 @@ class Config:
                 raise ValueError(f"Could not parse {chosen}: {exc}") from exc
             cls._apply(config, data)
             config._source = str(chosen)
+
+        # UI managed sync settings sit above the config file and below env.
+        for key, value in read_sync_state().items():
+            setattr(config, key, cls._coerce(key, value))
 
         known = {f.name for f in fields(cls) if not f.name.startswith("_")}
         for key, value in os.environ.items():
@@ -202,6 +245,16 @@ open_browser = true
 [export]
 export_format = "md"     # md | json | csv | txt | zip
 # output = "~/prompts"
+
+[sync]
+# Mirror your prompts into a folder. The UI writes its own choices to
+# sync.json next to this file, and those win over what you set here.
+sync_enabled = false
+# sync_folder = "~/prompts"
+sync_layout = "project"      # project | session | single
+sync_include_tool = true     # tool/project/prompts.md, or project/prompts.md
+sync_format = "md"           # md | txt | json | csv
+sync_prune = true            # remove files an earlier sync wrote
 """
 
 TEMPLATE_JSON = json.dumps(
@@ -221,6 +274,11 @@ TEMPLATE_JSON = json.dumps(
         "port": 7777,
         "open_browser": True,
         "export_format": "md",
+        "sync_enabled": False,
+        "sync_layout": "project",
+        "sync_include_tool": True,
+        "sync_format": "md",
+        "sync_prune": True,
     },
     indent=2,
 ) + "\n"

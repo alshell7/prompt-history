@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prompt-history"
-version = "1.0.0"
+version = "1.1.0"
 description = "Read back every prompt you typed into Claude Code and Codex, from your own machine."
 readme = "README.md"
 requires-python = ">=3.9"

@@ -104,6 +104,42 @@ prompt-history-2026-09-21/
 
 `by-session` is the folder you actually read. Each file is one conversation, your prompts in the order you typed them, with the project, model and branch at the top.
 
+### Sync to a folder
+
+Keep a plain folder of Markdown on disk, updated as you work. Obsidian vault, notes repo, wherever.
+
+```bash
+prompt-history sync ~/prompts --save
+```
+
+```
+~/prompts/
+├── claude/
+│   ├── checkout-api/prompts.md
+│   └── prompt-history/prompts.md
+└── codex/
+    └── infra/prompts.md
+```
+
+One file per project, every session inside it in the order you typed them. `--save` means it re-syncs automatically every time you scan, so the folder stays current without you thinking about it.
+
+Change the shape however you like:
+
+```bash
+prompt-history sync ~/prompts --layout session    # a file per conversation
+prompt-history sync ~/prompts --layout single     # everything in one file
+prompt-history sync ~/notes --no-tool             # drop the tool folder
+prompt-history sync ~/data --format json          # or txt, or csv
+prompt-history sync ~/prompts --dry-run           # show me first
+```
+
+In the UI there is a **Folder sync** panel: pick a folder with a real system dialog, choose the structure, and watch the example path update as you change it.
+
+Two things make it safe to point at a folder you care about:
+
+- A file is only rewritten when its content actually changed, and generated files carry no "synced at" stamp. Nothing churns, so it is fine to keep in git.
+- Sync keeps a manifest of exactly what it wrote. When cleaning up stale files, it will only delete things on that list. Your own notes in the same folder are never touched, and a folder with no manifest is never cleaned at all.
+
 ### As a library
 
 ```python
@@ -118,6 +154,9 @@ for hit in ph.search("rate limit"):
 
 ph.write("q3.zip")                 # format inferred from the suffix
 markdown = ph.render("md")         # or get it as a string
+
+report = ph.sync("~/prompts")      # mirror to a folder
+print(report.summary())            # "Wrote 3 new, 1 updated."
 ```
 
 Every CLI flag is a keyword argument, and a typo raises instead of silently returning everything.
@@ -148,7 +187,16 @@ skip_slash_commands = true
 [server]
 port = 7777
 open_browser = true
+
+[sync]
+sync_enabled = true         # mirror on every scan
+sync_folder = "~/prompts"
+sync_layout = "project"     # project | session | single
+sync_include_tool = true    # tool/project/prompts.md, or project/prompts.md
+sync_format = "md"
 ```
+
+The UI writes its own sync choices to `sync.json` beside your config, so it never rewrites a file you hand edited.
 
 Config file, then `PROMPT_HISTORY_*` environment variables, then CLI flags. Last one wins.
 

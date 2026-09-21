@@ -167,6 +167,46 @@ select:hover{border-color:var(--faint)}
 .chip b{font-weight:600;color:var(--ink)}
 .chip svg{color:var(--faint)}
 
+.panel{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r-surface);margin-bottom:12px;box-shadow:var(--shadow);
+}
+.panel summary{
+  display:flex;align-items:center;gap:9px;padding:11px 13px;cursor:pointer;
+  list-style:none;font-size:13px;
+}
+.panel summary::-webkit-details-marker{display:none}
+.panel summary .caret{color:var(--faint);transition:transform .12s}
+.panel[open] summary .caret{transform:rotate(90deg)}
+.panel summary .title{font-weight:600}
+.panel summary .state{color:var(--muted);min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.panel summary .pill{
+  margin-left:auto;font:11px/1 var(--mono);border:1px solid var(--line);
+  border-radius:var(--r-pill);padding:4px 9px;color:var(--muted);
+}
+.panel summary .pill.live{border-color:var(--codex);color:var(--codex)}
+.panel .inner{padding:0 13px 13px;border-top:1px solid var(--line);padding-top:13px}
+.sync-grid{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px}
+.sync-grid input[type=text]{
+  flex:1 1 280px;min-width:180px;padding:7px 10px;border:1px solid var(--line);
+  border-radius:var(--r-control);background:var(--bg);outline:none;
+  font:12.5px/1.4 var(--mono);
+}
+.sync-grid input[type=text]:focus{border-color:var(--ink)}
+.sync-opts{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  font-size:12.5px;color:var(--muted)}
+.sync-opts label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.sync-opts select{padding:5px 7px;font-size:12.5px}
+.sync-opts input[type=checkbox]{accent-color:var(--ink);width:14px;height:14px;cursor:pointer}
+.sync-path{
+  font:11.5px/1.5 var(--mono);color:var(--faint);margin-top:9px;
+  padding-top:9px;border-top:1px solid var(--line);
+}
+.sync-path b{color:var(--muted);font-weight:500}
+.sync-note{margin-top:8px;font-size:12.5px;color:var(--muted)}
+.sync-note.bad{color:var(--claude)}
+
 .notice{
   display:flex;gap:10px;align-items:flex-start;
   border:1px solid var(--line);border-left:2px solid var(--faint);
@@ -312,6 +352,48 @@ select:hover{border-color:var(--faint)}
 
   <main>
     <div id="notices"></div>
+
+    <details class="panel" id="syncPanel" hidden>
+      <summary>
+        <span class="caret"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+          stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6l-6 6"/></svg></span>
+        <span class="title">Folder sync</span>
+        <span class="state" id="syncState">Not set up</span>
+        <span class="pill" id="syncPill">Off</span>
+      </summary>
+      <div class="inner">
+        <div class="sync-grid">
+          <input type="text" id="syncFolder" spellcheck="false" autocomplete="off"
+                 placeholder="~/prompts" aria-label="Folder to sync into">
+          <button class="btn" id="syncBrowse">Browse</button>
+          <button class="btn solid" id="syncNow">Sync now</button>
+        </div>
+        <div class="sync-opts">
+          <label><input type="checkbox" id="syncAuto"> Sync on every scan</label>
+          <label>Structure
+            <select id="syncLayout">
+              <option value="project">One file per project</option>
+              <option value="session">One file per session</option>
+              <option value="single">One file for everything</option>
+            </select>
+          </label>
+          <label>Format
+            <select id="syncFormat">
+              <option value="md">Markdown</option>
+              <option value="txt">Plain text</option>
+              <option value="json">JSON</option>
+              <option value="csv">CSV</option>
+            </select>
+          </label>
+          <label><input type="checkbox" id="syncTool" checked> Tool folder</label>
+          <label><input type="checkbox" id="syncPrune" checked> Remove stale files</label>
+        </div>
+        <div class="sync-path" id="syncPreview"></div>
+        <div class="sync-note" id="syncNote"></div>
+      </div>
+    </details>
+
     <div class="toolbar" id="toolbar" hidden>
       <select id="group" aria-label="Grouping">
         <option value="day">By day</option>
@@ -764,6 +846,136 @@ $("copyAll").addEventListener("click", (event) => {
        `Copied ${rows.length} ${rows.length === 1 ? "prompt" : "prompts"}`);
 });
 
+/* ------------------------------------------------------------ folder sync */
+const sync = {
+  folder:"", enabled:false, layout:"project",
+  include_tool:true, format:"md", prune:true,
+};
+
+function syncPathPreview(){
+  const fmt = sync.format;
+  const tool = sync.include_tool ? "claude/" : "";
+  if (sync.layout === "single") return `prompts.${fmt}`;
+  if (sync.layout === "session") return `${tool}checkout-api/2026-09-14-fix-the-webhook.${fmt}`;
+  return `${tool}checkout-api/prompts.${fmt}`;
+}
+
+function renderSync(){
+  $("syncFolder").value = sync.folder || "";
+  $("syncAuto").checked = !!sync.enabled;
+  $("syncLayout").value = sync.layout;
+  $("syncFormat").value = sync.format;
+  $("syncTool").checked = !!sync.include_tool;
+  $("syncPrune").checked = !!sync.prune;
+  $("syncTool").disabled = sync.layout === "single";
+
+  const pill = $("syncPill");
+  const on = sync.enabled && sync.folder;
+  pill.textContent = on ? "Auto" : sync.folder ? "Manual" : "Off";
+  pill.classList.toggle("live", !!on);
+  $("syncState").textContent = sync.folder
+    ? (on ? `Mirroring to ${sync.folder}` : sync.folder)
+    : "Not set up";
+  $("syncPreview").innerHTML =
+    `<b>Files land at</b> ${esc(sync.folder || "your folder")}/${esc(syncPathPreview())}`;
+}
+
+function syncNote(message, bad){
+  const note = $("syncNote");
+  note.textContent = message || "";
+  note.classList.toggle("bad", !!bad);
+}
+
+async function saveSync(){
+  renderSync();
+  try {
+    await fetch("/api/sync/settings", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        sync_folder:sync.folder, sync_enabled:sync.enabled,
+        sync_layout:sync.layout, sync_include_tool:sync.include_tool,
+        sync_format:sync.format, sync_prune:sync.prune,
+      }),
+    });
+  } catch (error) {
+    syncNote("Could not save the sync settings.", true);
+  }
+}
+
+$("syncFolder").addEventListener("change", (event) => {
+  sync.folder = event.target.value.trim();
+  saveSync();
+});
+for (const [id, key] of [["syncLayout","layout"], ["syncFormat","format"]]){
+  $(id).addEventListener("change", (event) => { sync[key] = event.target.value; saveSync(); });
+}
+for (const [id, key] of [["syncAuto","enabled"], ["syncTool","include_tool"],
+                         ["syncPrune","prune"]]){
+  $(id).addEventListener("change", (event) => { sync[key] = event.target.checked; saveSync(); });
+}
+
+$("syncBrowse").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  syncNote("Look for the folder chooser, it may be behind this window.");
+  try {
+    const response = await fetch("/api/sync/pick", {method:"POST"});
+    const result = await response.json();
+    if (result.error) syncNote(result.error, true);
+    else if (result.folder){
+      sync.folder = result.folder;
+      syncNote("");
+      await saveSync();
+    } else syncNote("No folder chosen.");
+  } catch (error){
+    syncNote("The folder chooser is not available here. Type the path instead.", true);
+  }
+  button.disabled = false;
+});
+
+$("syncNow").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  const folder = $("syncFolder").value.trim();
+  if (!folder) return syncNote("Choose a folder first.", true);
+  sync.folder = folder;
+  button.disabled = true;
+  syncNote("Syncing.");
+  try {
+    const response = await fetch("/api/sync/run", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({folder}),
+    });
+    const result = await response.json();
+    if (result.error) syncNote(result.error, true);
+    else {
+      syncNote(`${result.summary} Into ${result.folder}`);
+      toast(result.summary);
+      await saveSync();
+    }
+  } catch (error){
+    syncNote("The sync request failed.", true);
+  }
+  button.disabled = false;
+});
+
+function loadSync(payload){
+  if (!payload) return;
+  sync.folder = payload.sync_folder || "";
+  sync.enabled = !!payload.sync_enabled;
+  sync.layout = payload.sync_layout || "project";
+  sync.include_tool = payload.sync_include_tool !== false;
+  sync.format = payload.sync_format || "md";
+  sync.prune = payload.sync_prune !== false;
+  renderSync();
+  $("syncPanel").hidden = false;
+  if (payload.last){
+    if (payload.last.error) syncNote(payload.last.error, true);
+    else syncNote(`Last sync: ${payload.last.summary}`);
+  }
+}
+
 /* ---------------------------------------------------------------- notices */
 function renderNotices(){
   const s = state.data.stats;
@@ -847,6 +1059,7 @@ async function load(){
     return;
   }
   state.data = data;
+  loadSync(data.sync);
   $("toolbar").hidden = !data.prompts.length;
   renderMetrics(); renderNotices(); renderTree(); renderList();
 }

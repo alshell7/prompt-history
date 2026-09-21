@@ -15,6 +15,7 @@ from . import __version__
 from .api import PromptHistory
 from .config import Config, default_config_path, find_config, write_template
 from .export import FORMATS, default_filename, render, write
+from .sync import LAYOUTS, SYNC_FORMATS, SyncError
 
 FILTER_FLAGS = (
     "search", "tool", "since", "until", "min_words", "max_words",
@@ -67,7 +68,7 @@ def build_config(args: argparse.Namespace) -> Config:
         if value is not None and key not in
         ("command", "config", "func", "out", "format", "limit", "full",
          "json_out", "init", "show", "path", "force", "verbose", "quiet",
-         "query")
+         "query", "folder", "dry_run", "save")
     }
     try:
         return Config.load(getattr(args, "config", None), **known)
@@ -182,6 +183,39 @@ def cmd_export(args) -> int:
     size = written.stat().st_size
     print(f"Wrote {snapshot['stats']['prompts']} prompts to {written} "
           f"({size / 1024:.1f} KB)", file=sys.stderr)
+    return 0
+
+
+def cmd_sync(args) -> int:
+    config = build_config(args)
+    folder = args.folder or config.sync_folder
+    history = PromptHistory(config)
+    try:
+        report = history.sync(folder, dry_run=args.dry_run)
+    except SyncError as exc:
+        raise SystemExit(str(exc))
+    except OSError as exc:
+        raise SystemExit(f"Could not write to {folder}: {exc}")
+
+    print(f"{'Would sync' if args.dry_run else 'Synced'} "
+          f"{report.prompts} prompts to {report.folder}")
+    print(report.summary())
+    if args.verbose:
+        for label, names in (("new", report.written), ("updated", report.updated),
+                             ("removed", report.removed)):
+            for name in names:
+                print(f"  {label:<8} {name}")
+    if args.save and folder:
+        from .config import write_sync_state
+        write_sync_state({
+            "sync_folder": str(report.folder),
+            "sync_enabled": True,
+            "sync_layout": config.sync_layout,
+            "sync_include_tool": config.sync_include_tool,
+            "sync_format": config.sync_format,
+            "sync_prune": config.sync_prune,
+        })
+        print("\nSaved. This folder will now sync automatically on every scan.")
     return 0
 
 
@@ -306,6 +340,26 @@ def build_parser() -> argparse.ArgumentParser:
                             help="file or directory; omit to print to stdout")
     export_cmd.set_defaults(func=cmd_export)
 
+    sync_cmd = sub.add_parser(
+        "sync", help="mirror prompts into a folder, tool then project then file")
+    sync_cmd.add_argument("folder", nargs="?",
+                          help="destination; omit to use the configured one")
+    sync_cmd.add_argument("--layout", choices=list(LAYOUTS), dest="sync_layout",
+                          help="project (one file per project), session, or single")
+    sync_cmd.add_argument("--format", choices=list(SYNC_FORMATS), dest="sync_format",
+                          help="default md")
+    sync_cmd.add_argument("--no-tool", dest="sync_include_tool",
+                          action="store_false", default=None,
+                          help="drop the tool folder, write project/... instead")
+    sync_cmd.add_argument("--no-prune", dest="sync_prune", action="store_false",
+                          default=None, help="keep files an earlier sync wrote")
+    sync_cmd.add_argument("--dry-run", action="store_true",
+                          help="report what would change, write nothing")
+    sync_cmd.add_argument("--save", action="store_true",
+                          help="remember this folder and sync on every scan")
+    sync_cmd.add_argument("--verbose", action="store_true", help="list every file")
+    sync_cmd.set_defaults(func=cmd_sync)
+
     stats_cmd = sub.add_parser("stats", help="summarise what was found")
     stats_cmd.add_argument("--json", dest="json_out", action="store_true")
     stats_cmd.set_defaults(func=cmd_stats)
@@ -321,7 +375,7 @@ def build_parser() -> argparse.ArgumentParser:
     config_cmd.set_defaults(func=cmd_config)
 
     for cmd in (serve_cmd, list_cmd, search_cmd, sessions_cmd, export_cmd,
-                stats_cmd, sources_cmd):
+                sync_cmd, stats_cmd, sources_cmd):
         add_filter_flags(cmd)
         add_source_flags(cmd)
 

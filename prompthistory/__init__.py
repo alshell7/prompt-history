@@ -8,6 +8,7 @@
         print(hit.timestamp, hit.project, hit.text[:60])
 
     ph.write("prompts.zip", fmt="zip")
+    ph.sync("~/prompts")            # mirror into a folder, tool then project
 
 Nothing here touches the network and nothing writes to your session files.
 """
@@ -20,8 +21,9 @@ from .api import PromptHistory, SOURCE_LABELS, TOOL_OF_SOURCE
 from .config import Config
 from .export import FORMATS, render, write as _write_snapshot
 from .model import Prompt, Session
+from .sync import SyncError, SyncReport
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     "PromptHistory",
@@ -29,6 +31,8 @@ __all__ = [
     "Prompt",
     "Session",
     "FORMATS",
+    "SyncReport",
+    "SyncError",
     "SOURCE_LABELS",
     "TOOL_OF_SOURCE",
     "scan",

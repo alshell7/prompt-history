@@ -74,3 +74,35 @@ def test_config_init_and_show(machine, tmp_path, capsys):
 def test_unknown_format_exits(machine):
     with pytest.raises(SystemExit):
         main(["export", "-f", "pdf"])
+
+
+def test_sync_command(machine, tmp_path, capsys):
+    assert main(["sync", str(tmp_path)]) == 0
+    assert "Synced" in capsys.readouterr().out
+    assert list(tmp_path.rglob("prompts.md"))
+
+
+def test_sync_dry_run_writes_nothing(machine, tmp_path, capsys):
+    target = tmp_path / "empty"
+    assert main(["sync", str(target), "--dry-run"]) == 0
+    assert "Would sync" in capsys.readouterr().out
+    assert not target.exists()
+
+
+def test_sync_layout_and_format_flags(machine, tmp_path):
+    assert main(["sync", str(tmp_path), "--layout", "single",
+                 "--format", "json", "--no-tool"]) == 0
+    assert (tmp_path / "prompts.json").is_file()
+
+
+def test_sync_save_turns_on_auto(machine, tmp_path, capsys):
+    from prompthistory.config import read_sync_state
+    assert main(["sync", str(tmp_path), "--save"]) == 0
+    assert "automatically" in capsys.readouterr().out
+    assert read_sync_state()["sync_enabled"] is True
+
+
+def test_sync_without_a_folder_explains_itself(machine):
+    with pytest.raises(SystemExit) as caught:
+        main(["sync"])
+    assert "folder" in str(caught.value).lower()

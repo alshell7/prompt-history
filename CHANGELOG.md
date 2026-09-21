@@ -3,6 +3,26 @@
 All notable changes to this project are documented here.
 This project follows [semantic versioning](https://semver.org/).
 
+## [1.1.0] - 2026-09-21
+
+### Added
+- Folder sync. Mirror your prompts into a folder on disk, as
+  `tool/project/prompts.md` by default. Run it with `prompt-history sync`,
+  from the panel in the UI, or automatically on every scan.
+- The structure is configurable: one file per project, per session, or one
+  file for everything, with or without the tool folder, as Markdown, plain
+  text, JSON or CSV.
+- A native folder chooser in the UI, so you can pick a destination instead
+  of typing a path.
+- `PromptHistory.sync()` in the library, and a `[sync]` config section.
+
+### Notes
+- Sync only rewrites a file when its content changed, and generated files
+  carry no timestamp of their own, so a watched folder stays quiet.
+- Pruning removes only files recorded in the manifest that sync itself
+  wrote. Anything else in the folder is left alone. A folder with no
+  manifest is never pruned.
+
 ## [1.0.0] - 2026-09-21
 
 First release.

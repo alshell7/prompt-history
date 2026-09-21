@@ -13,7 +13,7 @@
    --------------------------------------------------------------------------- */
 :root{
   --bg:#f4f4f5; --surface:#fcfcfd; --sunken:#f0f0f2; --line:#e3e3e7;
-  --ink:#18181b; --muted:#52525b; --faint:#a1a1aa; --on-ink:#fafafa;
+  --ink:#18181b; --muted:#52525b; --faint:#666670; --on-ink:#fafafa;
   --claude:#a3491f; --claude-bg:#f6ece5;
   --codex:#0d6553; --codex-bg:#e2f0ec;
   --good:#166534;
@@ -26,7 +26,7 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#0c0c0e; --surface:#141417; --sunken:#1b1b1f; --line:#27272c;
-    --ink:#e7e7ea; --muted:#a1a1aa; --faint:#6e6e78; --on-ink:#0c0c0e;
+    --ink:#e7e7ea; --muted:#a1a1aa; --faint:#9696a1; --on-ink:#0c0c0e;
     --claude:#e2a37c; --claude-bg:#2b1d14;
     --codex:#6fcbb2; --codex-bg:#0f2b24;
     --good:#5fcf8e;
@@ -36,7 +36,7 @@
 }
 :root[data-theme="dark"]{
   --bg:#0c0c0e; --surface:#141417; --sunken:#1b1b1f; --line:#27272c;
-  --ink:#e7e7ea; --muted:#a1a1aa; --faint:#6e6e78; --on-ink:#0c0c0e;
+  --ink:#e7e7ea; --muted:#a1a1aa; --faint:#9696a1; --on-ink:#0c0c0e;
   --claude:#e2a37c; --claude-bg:#2b1d14;
   --codex:#6fcbb2; --codex-bg:#0f2b24;
   --good:#5fcf8e;
@@ -323,12 +323,121 @@ select:hover{border-color:var(--faint)}
 .references,.recovery-note{padding:0 18px 12px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
 .references a,.reference{display:inline;padding:2px 4px;border-radius:4px;background:var(--bg)}
 .body a:focus-visible,.references a:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+[hidden]{display:none !important}
+.view-switch{display:flex;gap:4px;margin:0 12px 0 0}
+.view-switch [aria-pressed=true]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
+.analytics{padding:12px 0 32px}
+.analytics h1{font-size:26px;letter-spacing:-.02em;margin:0 0 4px;font-weight:620}
+.analytics h2{font-size:17px;margin:0 0 12px;font-weight:620}
+.analytics p{max-width:75ch;color:var(--muted);margin:4px 0 16px}
+.analytics-controls{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:20px 0}
+.analytics-controls label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.analytics-controls input{padding:7px 9px;border:1px solid var(--line);border-radius:var(--r-control);background:var(--surface);min-width:0;max-width:160px}
+.analytics-controls input[type=number]{width:110px}
+.analytics-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;padding:20px 0;border-block:1px solid var(--line);margin:0 0 28px}
+.analytics-summary dt{font-size:12px;color:var(--muted)}
+.analytics-summary dd{font-size:clamp(20px,2.5vw,30px);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:6px 0 0;font-weight:600;overflow-wrap:anywhere}
+.analytics-section{margin:0 0 28px;min-width:0}
+.analytics-heading{display:flex;gap:12px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.analytics-heading h2{margin:0}
+.analytics-table-wrap{overflow-x:auto;border-block:1px solid var(--line)}
+.analytics table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:13px;text-align:left}
+.analytics th{font-weight:500;color:var(--muted);font-size:12px;white-space:nowrap}
+.analytics td,.analytics th{padding:10px 12px;border-bottom:1px solid var(--line)}
+.analytics tr:last-child td{border-bottom:0}
+.analytics td:not(:first-child),.analytics th:not(:first-child){text-align:right;white-space:nowrap}
+.analytics td:first-child{min-width:150px;max-width:300px;overflow-wrap:anywhere}
+.analytics .path{display:block;font-size:12px;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
+.session-title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.analytics-link{background:none;border:0;padding:0;text-align:left;text-decoration:underline;text-underline-offset:3px;white-space:normal;overflow-wrap:anywhere}
+.rank-track{height:3px;background:var(--sunken);margin-top:7px;width:100%}
+.rank-track span{display:block;height:100%;background:var(--codex)}
+.analytics-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.analytics-facts{display:grid;grid-template-columns:1fr auto;gap:0;margin:0;font-variant-numeric:tabular-nums}
+.analytics-facts dt,.analytics-facts dd{margin:0;padding:8px 0;border-bottom:1px solid var(--line)}
+.analytics-facts dt{color:var(--muted)}
+.analytics-facts dd{text-align:right;padding-left:12px}
+.activity-chart{display:flex;align-items:end;gap:3px;height:120px;border-bottom:1px solid var(--line);margin-top:20px}
+.activity-column{flex:1;min-width:0;height:100%;display:flex;align-items:end;justify-content:center}
+.activity-column span{width:100%;max-width:32px;background:var(--codex);min-height:2px}
+.chart-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin:6px 0 12px}
+.analytics details{margin-top:12px;color:var(--muted)}
+.analytics details summary{cursor:pointer;padding:8px 0;color:var(--ink)}
+.analytics .methodology p{font-size:13px;margin:8px 0}
+.analytics-error{color:var(--claude);margin:0 0 12px}
+.analytics-title{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.analytics-title .btn{min-height:40px}
+.analytics-actions{display:flex;gap:8px;flex-wrap:wrap}
+.analytics-controls{padding:14px;background:var(--sunken);border-radius:var(--r-surface)}
+.analytics-controls input,.analytics-controls select{min-height:38px}
+.analytics-facts{grid-template-columns:minmax(0,1fr) auto}
+.coverage{font-size:12px;color:var(--muted);margin-bottom:14px}
+.coverage>summary{cursor:pointer;padding:6px 0}
+.coverage .notice{margin-top:8px}
+.browse-panel>summary{font-size:12px;color:var(--muted);cursor:pointer;padding:0 6px 10px}
+body[data-view=analytics] #syncPanel{display:none}
+.share-dialog{width:min(760px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:24px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);overflow:auto}
+.share-dialog::backdrop{background:rgba(0,0,0,.6)}
+.share-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.share-heading h2{font-size:22px;margin:0;font-weight:620;letter-spacing:-.02em}
+.share-dialog p{color:var(--muted);font-size:13px;max-width:65ch}
+.share-options{display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin:16px 0;font-size:13px}
+.share-options label{display:flex;gap:8px;align-items:center}
+.share-options input{accent-color:var(--codex);width:16px;height:16px}
+.share-preview{display:block;width:100%;height:auto;aspect-ratio:6/5;border:1px solid var(--line);border-radius:8px;background:var(--sunken)}
+.share-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.share-actions .btn{min-height:40px}
+.share-status{min-height:20px;margin-bottom:0}
+::selection{background:var(--ink);color:var(--on-ink)}
+@media(max-width:900px){main{width:100%}}
+@media(max-width:600px){
+  header{gap:8px;padding:10px 12px}
+  .wordmark{flex:1;font-size:13px}
+  .view-switch{margin:0}
+  .view-switch .btn{padding:6px 9px;font-size:12px;min-height:34px}
+  .field{order:4;flex:1 1 calc(100% - 96px);min-width:0}
+  #rescan{order:5;font-size:12px;min-height:36px}
+  .field .hint{display:none}
+  .field input{padding-right:10px}
+  .metrics{gap:12px;justify-content:space-between;margin-bottom:10px;padding-bottom:10px}
+  .metric{gap:4px}
+  .metric b{font-size:16px}
+  .metric span{font-size:11px}
+  .browse-panel>summary{padding-bottom:0;min-height:28px}
+  .browse-panel[open]>summary{padding-bottom:10px}
+  .toolbar{gap:6px;padding-bottom:10px;margin-bottom:6px}
+  .toolbar .btn,.toolbar select{font-size:12px;padding:6px 8px}
+  .analytics{padding-top:8px}
+  .analytics-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .analytics-grid{grid-template-columns:minmax(0,1fr);gap:0}
+  .analytics-controls{gap:12px;margin:16px 0;padding:12px}
+  .analytics-controls input{max-width:140px}
+  .analytics h1{font-size:23px}
+  .analytics td:first-child{max-width:none;min-width:0}
+  .analytics-table-wrap{overflow:visible}
+  .analytics table,.analytics tbody{display:block}
+  .analytics thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  .analytics tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .analytics tr:last-child{border-bottom:0}
+  .analytics td,.analytics td:not(:first-child){display:block;padding:0;border:0;text-align:left;white-space:normal;font-size:14px}
+  .analytics td:first-child{grid-column:1/-1;font-weight:600}
+  .analytics td:not(:first-child)::before{content:attr(data-label);display:block;font-weight:400;font-size:11px;color:var(--muted);margin-bottom:2px}
+  .analytics td:first-child .path{font-weight:400}
+  .rank-track{display:none}
+  .share-dialog{padding:16px}
+  .share-heading h2{font-size:20px}
+  .share-actions .btn{flex:1;justify-content:center}
+}
 </style>
 </head>
 <body>
 
 <header>
   <div class="wordmark">Prompt History</div>
+  <nav class="view-switch" aria-label="View">
+    <button class="btn" id="promptsView" aria-pressed="true">Prompts</button>
+    <button class="btn" id="analyticsView" aria-pressed="false">Analytics</button>
+  </nav>
   <div class="field">
     <label class="sr-only" for="q">Search your prompts</label>
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -354,12 +463,14 @@ select:hover{border-color:var(--faint)}
 <div class="shell">
   <aside>
     <div class="metrics" id="metrics"></div>
-    <div class="side-label">Browse</div>
-    <ul class="tree" id="tree"></ul>
+    <details class="browse-panel" id="browsePanel" open>
+      <summary>Browse projects</summary>
+      <ul class="tree" id="tree"></ul>
+    </details>
   </aside>
 
   <main>
-    <div id="notices"></div>
+    <details class="coverage" id="coverage" hidden><summary>Local data coverage</summary><div id="notices"></div></details>
 
     <details class="panel" id="syncPanel" hidden>
       <summary>
@@ -444,11 +555,40 @@ select:hover{border-color:var(--faint)}
     </div>
     <div class="chips" id="chips"></div>
     <div id="list"></div>
+    <section class="analytics" id="analytics" hidden aria-label="Local analytics">
+      <div class="analytics-title"><div><h1>Your prompting activity</h1>
+        <p>Writing, time, and habits across your local history.</p></div>
+        <div class="analytics-actions"><button class="btn solid" id="analyticsShare" disabled>Share image</button>
+          <button class="btn" id="analyticsExport">Download analytics</button></div></div>
+      <p class="analytics-scope">Uses your current project, tool, entry type, and search filters.</p>
+      <div class="analytics-controls">
+        <label>From <input type="date" id="analyticsSince"></label>
+        <label>Through <input type="date" id="analyticsUntil"></label>
+        <button class="btn" id="analyticsAllTime">All time</button>
+        <label>Typing speed (WPM)<input type="number" min="10" max="200" step="1" value="40" id="analyticsWpm"></label>
+        <label>Idle cutoff (minutes)<input type="number" min="1" max="120" step="1" value="30" id="analyticsIdle"></label>
+      </div>
+      <div id="analyticsError" class="analytics-error" role="status"></div>
+      <div id="analyticsReport"></div>
+    </section>
   </main>
 </div>
 
 <div id="toast" role="status" aria-live="polite"></div>
+<dialog class="share-dialog" id="shareDialog" aria-labelledby="shareTitle" aria-describedby="shareDescription">
+  <div class="share-heading"><h2 id="shareTitle">Share your activity</h2><button class="btn" id="shareClose" autofocus>Close</button></div>
+  <p id="shareDescription">A 1200 × 1000 image of your current selection. Prompt text, file paths, session titles, and search terms stay out of the card.</p>
+  <div class="share-options">
+    <label>Appearance <select id="shareTheme"><option value="light">Light</option><option value="dark">Dark</option></select></label>
+    <label><input type="checkbox" id="shareNames"> Include project names</label>
+  </div>
+  <img class="share-preview" id="sharePreview" width="1200" height="1000" alt="Preview of your prompting activity image card">
+  <div class="share-actions"><button class="btn solid" id="shareDownload">Download PNG</button><button class="btn" id="shareCopy">Copy image</button><button class="btn" id="shareNative" hidden>Share…</button></div>
+  <p class="share-status" id="shareStatus" role="status" aria-live="polite"></p>
+</dialog>
 
+<script src="/analytics.js"></script>
+<script src="/share-card.js"></script>
 <script>
 "use strict";
 
@@ -457,6 +597,7 @@ const state = {
   data:null, q:"", tool:null, project:null, session:null,
   kind:"all", sort:"new", group:"day", limit:PAGE,
   open:new Set(), open_ids:new Set(),
+  view:"prompts",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -780,6 +921,11 @@ function renderChips(){
 
 function renderList(){
   renderChips();
+  document.body.dataset.view=state.view;
+  $("list").hidden = state.view === "analytics";
+  $("analytics").hidden = state.view !== "analytics";
+  for (const id of ["group","sort","copyAll","zip","single"]) $(id).hidden = state.view === "analytics";
+  if (state.view === "analytics"){ renderAnalytics(); return; }
   const rows = visible();
   $("count").textContent = `${rows.length} of ${state.data.prompts.length}`;
 
@@ -1054,9 +1200,209 @@ function renderNotices(){
       <p>Run a session in either tool, then press Rescan.</p></div>`);
   }
   $("notices").innerHTML = out.join("");
+  $("coverage").hidden=!out.length;
+  if(!s.prompts) $("coverage").open=true;
 }
 
+/* --------------------------------------------------------- local analytics */
+let analyticsReport = null;
+let analyticsRank = "activitySeconds";
+let analyticsAllProjects = false;
+const number = n => Number(n).toLocaleString(undefined,{maximumFractionDigits:1});
+function duration(seconds){
+  if (!seconds) return "0m";
+  if (seconds < 60) return "<1m";
+  const minutes = Math.round(seconds/60);
+  return minutes < 60 ? `${minutes}m` : `${Math.floor(minutes/60)}h ${minutes%60}m`;
+}
+function analyticsTable(headers, rows, caption){
+  const body=rows.map(row=>{let cell=0;return row.replace(/<td>/g,()=>`<td data-label="${esc(headers[cell++]||"")}">`);}).join("");
+  return `<div class="analytics-table-wrap" tabindex="0" role="region" aria-label="${esc(caption)}"><table><caption class="sr-only">${esc(caption)}</caption><thead><tr>${headers.map(h=>`<th scope="col">${esc(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+function analyticsFacts(pairs){
+  return `<dl class="analytics-facts">${pairs.map(([label,value])=>`<dt>${esc(label)}</dt><dd>${esc(value)}</dd>`).join("")}</dl>`;
+}
+function renderAnalytics(){
+  if (!state.data) return;
+  const since=$("analyticsSince").value, until=$("analyticsUntil").value;
+  const settings={wpm:Number($("analyticsWpm").value),idleMinutes:Number($("analyticsIdle").value)};
+  try{
+    if(since && until && since>until) throw new Error("The start date must be on or before the end date.");
+    for(const id of ["analyticsSince","analyticsUntil","analyticsWpm","analyticsIdle"]){
+      if(!$(id).checkValidity()) throw new Error("Enter valid dates, a typing speed of 10–200 WPM, and an idle cutoff of 1–120 minutes.");
+    }
+    const rows=visible().filter(p=>{
+      if(!since && !until) return true;
+      if(!p.timestamp || !Number.isFinite(Date.parse(p.timestamp))) return false;
+      const day=PromptAnalytics.dayKey(new Date(p.timestamp));
+      return (!since || day>=since) && (!until || day<=until);
+    });
+    analyticsReport=PromptAnalytics.analyze(state.data.prompts,rows,settings);
+    analyticsReport.filters={since:since||null,until:until||null,search:state.q,tool:state.tool,project:state.project,session:state.session,kind:state.kind};
+    $("analyticsError").textContent="";
+    $("analyticsExport").disabled=!rows.length;
+    $("analyticsShare").disabled=!rows.length;
+    $("count").textContent=`${number(rows.length)} of ${number(state.data.prompts.length)}`;
+  } catch(error){
+    analyticsReport=null; $("analyticsError").textContent=error.message;
+    $("analyticsReport").innerHTML=""; $("analyticsExport").disabled=true; $("analyticsShare").disabled=true; return;
+  }
+  const a=analyticsReport,t=a.totals;
+  if(!t.prompts){
+    $("analyticsReport").innerHTML='<div class="blank"><h2>No activity in this selection</h2><p>Choose a wider date range or clear a project or search filter. Rescan to pick up new prompts.</p></div>';
+    return;
+  }
+  const metrics=[["Recorded prompts",number(t.prompts)],["Words",number(t.words)],["Approx. sentences",number(t.sentences)],["Characters",number(t.characters)],
+    ["Activity span estimate",duration(t.activitySeconds)],["Typing time estimate",duration(t.typingSeconds)],["Active days",number(t.activeDays)],["Sessions",number(t.sessions)]];
+  const projectRows=[...a.projects].sort((x,y)=>y[analyticsRank]-x[analyticsRank] || y.words-x.words);
+  const peak=projectRows[0]?.[analyticsRank]||1;
+  const rankFormat=n=>analyticsRank.endsWith("Seconds") ? duration(n) : number(n);
+  const leader=projectRows[0];
+  const projectTable=analyticsTable(["Project","Prompts","Words","Activity est.","Typing est."],
+    projectRows.slice(0,analyticsAllProjects ? undefined : 10).map(p=>`<tr><td>${p.key === null ? esc(p.name) : `<button class="analytics-link" data-analytics-project="${esc(p.key)}">${esc(p.name)}</button>`}<span class="path">${esc(p.key || "No project path recorded")}</span><div class="rank-track" aria-hidden="true"><span style="width:${Math.max(0,p[analyticsRank]/peak*100)}%"></span></div></td><td>${number(p.prompts)}</td><td>${number(p.words)}</td><td>${duration(p.activitySeconds)}</td><td>${duration(p.typingSeconds)}</td></tr>`),"Projects ranked by the selected metric");
+  const daily=a.daily;
+  const chartDays=[];
+  if(a.latest){
+    const last=new Date(a.latest+"T12:00:00"), first=new Date(a.earliest+"T12:00:00");
+    const start=new Date(last);start.setDate(start.getDate()-59);
+    const lookup=new Map(daily.map(d=>[d.date,d]));
+    for(let date=new Date(Math.max(start,first));date<=last;date.setDate(date.getDate()+1)){
+      const key=PromptAnalytics.dayKey(date);chartDays.push(lookup.get(key)||{date:key,prompts:0,words:0,activitySeconds:0});
+    }
+  }
+  const chartPeak=Math.max(1,...chartDays.map(d=>d.prompts));
+  const chart=chartDays.length ? `<div class="activity-chart" role="img" aria-label="Daily prompt counts for ${esc(chartDays[0].date)} through ${esc(a.latest)}. Exact values in the daily breakdown below.">${chartDays.map(d=>`<div class="activity-column" title="${esc(d.date)}: ${d.prompts} prompts"><span style="height:${d.prompts/chartPeak*100}%;opacity:${d.prompts ? 1 : 0}"></span></div>`).join("")}</div><div class="chart-labels"><span>${esc(chartDays[0].date)}</span><span>${esc(a.latest)}</span></div>` : '<p>No dated prompts in this selection.</p>';
+  const bestDay=[...daily].sort((x,y)=>y.prompts-x.prompts)[0];
+  const peakHour=a.hours.indexOf(Math.max(...a.hours));
+  const rhythmTable=analyticsTable(["Hour","Prompts"],a.hours.map((n,i)=>`<tr><td>${String(i).padStart(2,"0")}:00–${String(i).padStart(2,"0")}:59</td><td>${number(n)}</td></tr>`),"Prompts by local hour");
+  $("analyticsReport").innerHTML=`
+    <p>${a.earliest ? `${esc(a.earliest)} to ${esc(a.latest)}` : "No recorded dates"} · ${esc(a.methodology.timeZone)} · Calculated on this device</p>
+    <dl class="analytics-summary">${metrics.map(([label,value])=>`<div><dt>${label}</dt><dd>${value}</dd></div>`).join("")}</dl>
+    <section class="analytics-section">
+      <div class="analytics-heading"><h2>Where your effort goes</h2><label>Rank by <select id="analyticsRank" aria-label="Rank projects by">${[["activitySeconds","Activity estimate"],["words","Words"],["prompts","Prompts"],["typingSeconds","Typing estimate"]].map(([key,name])=>`<option value="${key}" ${analyticsRank===key ? "selected" : ""}>${name}</option>`).join("")}</select></label></div>
+      <p>${leader[analyticsRank]>0 ? `<strong>${esc(leader.name)}</strong> leads with ${rankFormat(leader[analyticsRank])}${analyticsRank==="words" ? " words" : analyticsRank==="prompts" ? " prompts" : ""}.` : "Not enough adjacent dated prompts to estimate activity. Rank by words or prompts to compare projects."} Activity is an estimate of gaps between prompts, including reading and waiting.</p>
+      ${projectTable}${projectRows.length>10 ? `<button class="btn" id="analyticsMore" style="margin-top:12px">${analyticsAllProjects ? "Show top 10" : `Show all ${number(projectRows.length)} projects`}</button>` : ""}
+    </section>
+    <section class="analytics-section"><h2>Your activity over time</h2><p>Daily prompt volume across the latest 60 calendar days in this selection. Dates and hours use your local timezone.</p>${chart}
+      <details><summary>Daily breakdown (${number(daily.length)} days with prompts or activity)</summary>${analyticsTable(["Date","Prompts","Words","Activity est."],daily.slice().reverse().map(d=>`<tr><td>${esc(d.date)}</td><td>${number(d.prompts)}</td><td>${number(d.words)}</td><td>${duration(d.activitySeconds)}</td></tr>`),"Daily activity")}</details>
+    </section>
+    <div class="analytics-grid">
+      <section class="analytics-section"><h2>Writing habits</h2>${analyticsFacts([["Average words / prompt",number(t.averageWords)],["Median words / prompt",number(t.medianWords)],["90th percentile words",number(t.p90Words)],["Longest prompt (words)",number(t.longestPromptWords)],["Repeated submissions",number(t.repeatedSubmissions)],["Slash commands",number(t.commands)],["Prompts with references",number(t.references)]])}
+        <details><summary>Prompt length distribution</summary>${analyticsFacts(a.lengths.map(b=>[b.name+" words",number(b.prompts)+" prompts"]))}</details></section>
+      <section class="analytics-section"><h2>Working rhythm</h2>${analyticsFacts([["Prompts / active day",number(t.promptsPerActiveDay)],["Current daily streak",number(t.currentStreak)+" days"],["Longest daily streak",number(t.longestStreak)+" days"],["Busiest date",bestDay?.prompts ? bestDay.date+" · "+number(bestDay.prompts) : "No dated prompts"],["Busiest hour",t.activeDays ? String(peakHour).padStart(2,"0")+":00–"+String(peakHour).padStart(2,"0")+":59" : "No dated prompts"],["Project switches within cutoff",number(t.projectSwitches)]])}
+        <details><summary>Weekday and hour breakdown</summary>${analyticsFacts(["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map((d,i)=>[d,number(a.weekdays[i])+" prompts"]))}${rhythmTable}</details></section>
+    </div>
+    <section class="analytics-section"><h2>Tools you use</h2>${analyticsTable(["Tool","Prompts","Words","Sessions","Typing est."],a.tools.map(b=>`<tr><td>${esc(b.name)}</td><td>${number(b.prompts)}</td><td>${number(b.words)}</td><td>${number(b.sessions)}</td><td>${duration(b.typingSeconds)}</td></tr>`),"Tool usage")}</section>
+    <section class="analytics-section"><h2>Sessions with the most writing</h2>${analyticsTable(["Session","Prompts","Words","Typing est."],[...a.sessions].sort((x,y)=>y.words-x.words).slice(0,10).map(s=>`<tr><td><span class="session-title" title="${esc(s.name)}">${esc(s.name)}</span><span class="path">${esc(s.tool)} · ${esc(s.project || "Unknown project")}</span></td><td>${number(s.prompts)}</td><td>${number(s.words)}</td><td>${duration(s.typingSeconds)}</td></tr>`),"Top ten sessions by words")}</section>
+    <details class="methodology"><summary>How these estimates work · data coverage</summary>
+      <p><strong>Activity:</strong> ${esc(a.methodology.activity)} Cutoff: ${number(a.methodology.idleMinutes)} minutes. A single isolated prompt contributes no activity time.</p>
+      <p><strong>Typing:</strong> ${esc(a.methodology.typing)} Speed: ${number(a.methodology.wpm)} WPM. This measures the time to type the recorded text once, without edits.</p>
+      <p><strong>Counts:</strong> ${esc(a.methodology.text)}</p>
+      <p><strong>Coverage:</strong> ${number(t.undated)} prompts without usable timestamps; ${number(t.future)} future-dated prompts. They count toward text totals but not time, trends, or streaks. Date filters exclude undated prompts. ${number(t.recovered)} prompts carry recovery notes. ${number(t.ambiguousIntervals)} ambiguous intervals were excluded.</p>
+      <p>A current streak includes today or yesterday. Repeated submissions count extra occurrences of identical text; they are not removed. Server scan filters still apply. Titles-only cloud tasks have no prompt data to analyze.</p>
+      <p>No tracking or network service is used. Only typing-speed and cutoff preferences are saved in this browser. The download contains aggregates and project/session labels, not prompt text.</p>
+    </details>`;
+  $("analyticsRank").addEventListener("change",event=>{analyticsRank=event.target.value;renderAnalytics();});
+  if($("analyticsMore")) $("analyticsMore").onclick=()=>{analyticsAllProjects=!analyticsAllProjects;renderAnalytics();};
+}
+for(const view of ["prompts","analytics"]){
+  $(view+"View").addEventListener("click",()=>{
+    state.view=view;
+    for(const name of ["prompts","analytics"]) $(name+"View").setAttribute("aria-pressed",String(name===view));
+    if(state.data) renderList();
+  });
+}
+for(const id of ["analyticsSince","analyticsUntil","analyticsWpm","analyticsIdle"]){
+  $(id).addEventListener("change",()=>{
+    renderAnalytics();
+    if(analyticsReport) try{localStorage.setItem("ph-analytics",JSON.stringify({wpm:analyticsReport.methodology.wpm,idleMinutes:analyticsReport.methodology.idleMinutes}));}catch(e){}
+  });
+}
+try{
+  const prefs=JSON.parse(localStorage.getItem("ph-analytics")||"null");
+  if(prefs && Number.isFinite(prefs.wpm) && prefs.wpm>=10 && prefs.wpm<=200) $("analyticsWpm").value=prefs.wpm;
+  if(prefs && Number.isFinite(prefs.idleMinutes) && prefs.idleMinutes>=1 && prefs.idleMinutes<=120) $("analyticsIdle").value=prefs.idleMinutes;
+}catch(e){}
+$("analyticsAllTime").onclick=()=>{$("analyticsSince").value="";$("analyticsUntil").value="";renderAnalytics();};
+$("analyticsReport").addEventListener("click",event=>{
+  const button=event.target.closest("[data-analytics-project]");
+  if(!button) return;
+  state.project=button.dataset.analyticsProject;state.session=null;state.limit=PAGE;
+  renderTree();renderList();
+});
+$("analyticsExport").onclick=()=>{
+  if(!analyticsReport) return;
+  const payload={generatedAt:new Date().toISOString(),...analyticsReport};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}));
+  const link=document.createElement("a");link.href=url;link.download="prompt-history-analytics.json";link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+
+/* ---------------------------------------------------------- sharing images */
+let shareReport=null, shareBlob=null, shareGeneration=0;
+function renderShareCard(){
+  const generation=++shareGeneration;
+  shareBlob=null;
+  $("shareDownload").disabled=$("shareCopy").disabled=true;
+  $("shareNative").hidden=true;
+  $("shareStatus").textContent="Creating your image…";
+  try{
+    const canvas=document.createElement("canvas");
+    const model=PromptShareCard.draw(canvas,shareReport,{theme:$("shareTheme").value,showNames:$("shareNames").checked});
+    $("sharePreview").src=canvas.toDataURL("image/png");
+    $("sharePreview").alt=model.title+". "+model.range+". "+model.metrics.map(([label,value])=>`${label}: ${value}`).join(". ")+". "+model.settings;
+    canvas.toBlob(blob=>{
+      if(generation!==shareGeneration) return;
+      if(!blob){$("shareStatus").textContent="Could not create the image. Try closing and reopening the preview.";return;}
+      shareBlob=blob;$("shareDownload").disabled=false;
+      const canCopy=!!(navigator.clipboard?.write && window.ClipboardItem);
+      $("shareCopy").disabled=!canCopy;
+      $("shareCopy").title=canCopy ? "Copy PNG to clipboard" : "Image copy is unavailable in this browser. Download the PNG instead.";
+      const file=new File([blob],"prompt-history-activity.png",{type:"image/png"});
+      $("shareNative").hidden=!(navigator.canShare && navigator.canShare({files:[file]}));
+      $("shareStatus").textContent=canCopy ? "Ready. The image is generated locally." : "Ready to download. This browser does not support copying images.";
+    },"image/png");
+  }catch(error){$("shareStatus").textContent="Could not create the image. "+error.message;}
+}
+$("analyticsShare").onclick=()=>{
+  if(!analyticsReport?.totals.prompts) return;
+  shareReport=analyticsReport;
+  $("shareNames").checked=false;
+  const theme=document.documentElement.dataset.theme;
+  $("shareTheme").value=theme==="dark" || (!theme && matchMedia("(prefers-color-scheme:dark)").matches) ? "dark" : "light";
+  $("shareDialog").showModal();renderShareCard();
+};
+$("shareClose").onclick=()=>$("shareDialog").close();
+$("shareDialog").addEventListener("close",()=>{
+  ++shareGeneration;shareReport=shareBlob=null;$("sharePreview").removeAttribute("src");$("analyticsShare").focus();
+});
+for(const id of ["shareTheme","shareNames"]) $(id).addEventListener("change",renderShareCard);
+$("shareDownload").onclick=()=>{
+  if(!shareBlob) return;
+  const url=URL.createObjectURL(shareBlob),link=document.createElement("a");
+  link.href=url;link.download="prompt-history-activity.png";link.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  $("shareStatus").textContent="PNG downloaded. You can share the file wherever you like.";
+};
+$("shareCopy").onclick=async()=>{
+  if(!shareBlob) return;
+  try{
+    await navigator.clipboard.write([new ClipboardItem({"image/png":shareBlob})]);
+    $("shareStatus").textContent="Image copied. Paste it into a message or post.";
+  }catch(error){$("shareStatus").textContent="Image copy was unavailable or blocked. Download the PNG instead.";}
+};
+$("shareNative").onclick=async()=>{
+  if(!shareBlob) return;
+  try{
+    await navigator.share({files:[new File([shareBlob],"prompt-history-activity.png",{type:"image/png"})]});
+    $("shareStatus").textContent="Image shared.";
+  }catch(error){$("shareStatus").textContent=error.name==="AbortError" ? "Sharing cancelled. Your image is still ready." : "Sharing is unavailable. Download the PNG instead.";}
+};
+
 /* ----------------------------------------------------------------- wiring */
+const compactLayout=matchMedia("(max-width:900px)");
+$("browsePanel").open=!compactLayout.matches;
+compactLayout.addEventListener("change",event=>{$("browsePanel").open=!event.matches;});
 let typing;
 $("q").addEventListener("input", (event) => {
   clearTimeout(typing);
@@ -1101,6 +1447,12 @@ function skeleton(){
 }
 
 async function load(){
+  state.data=null;
+  analyticsReport=null;
+  $("analyticsExport").disabled=true;
+  $("analyticsShare").disabled=true;
+  $("list").hidden=false;
+  $("analytics").hidden=true;
   skeleton();
   let data;
   try {

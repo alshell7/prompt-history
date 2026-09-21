@@ -1,28 +1,44 @@
 # Prompt History
 
-**Every prompt you have ever typed into Claude Code and Codex is already sitting on your disk. This reads it back.**
+**Find the prompt worth keeping. See the work behind it.**
+
+A local prompt library for Claude Code and Codex. Search your saved history,
+understand your writing habits, and take your best prompts with you.
 
 [![PyPI](https://img.shields.io/pypi/v/prompt-history.svg)](https://pypi.org/project/prompt-history/)
 [![Python](https://img.shields.io/pypi/pyversions/prompt-history.svg)](https://pypi.org/project/prompt-history/)
 [![License](https://img.shields.io/pypi/l/prompt-history.svg)](LICENSE)
+[![Tests](https://github.com/alshell7/prompt-history/actions/workflows/test.yml/badge.svg)](https://github.com/alshell7/prompt-history/actions/workflows/test.yml)
+
+[Get started](#get-it) · [Analytics](#local-analytics) · [Share an activity card](#share-an-activity-card) · [Privacy](#privacy) · [Documentation](#use-it)
+
+![Prompt History showing searchable prompts, project navigation, and inline file references in a fictional developer workspace](https://raw.githubusercontent.com/alshell7/prompt-history/main/docs/images/prompt-browser.png)
+
+*The real interface, with fictional projects and prompts. All screenshots below use synthetic data.*
 
 ```bash
 pipx install prompt-history && prompt-history
 ```
 
-Your browser opens. There is everything you have asked an AI to build, searchable, grouped, one click from your clipboard.
+Your browser opens to the prompts available in your local session files. Search,
+browse by project, and copy a useful prompt back into your next conversation.
 
-No dependencies. No account. No network. It never writes to your session files, it only reads them.
+**Zero runtime dependencies. No account. Works offline.** Your session files are always read-only.
+
+| Find it again | Understand your habits | Keep it yours |
+| --- | --- | --- |
+| Search across Claude Code and Codex, with project and session context. | Compare projects, explore activity patterns, and estimate typing time. | Copy prompts, export Markdown or ZIP, sync a folder, or share an activity image. |
 
 ---
 
 ## Why you want this
 
-You spent six months writing prompts. Some of them were really good. You have no idea where any of them are.
+The migration plan that worked. The refactor instructions you keep rewriting.
+The question that finally made the bug obvious.
 
-They are in `~/.claude/projects` and `~/.codex/sessions`, buried in JSONL transcripts next to a few hundred megabytes of tool output and model replies. Technically readable. Practically gone.
-
-This pulls out your half of the conversation and nothing else.
+Your local session files mix those prompts with model replies and tool output.
+Prompt History brings your side of the conversation into one searchable view,
+while preserving project context and links to referenced files.
 
 - The prompt you wrote at 2am that finally fixed the build
 - That one perfect refactor instruction you want to reuse
@@ -64,7 +80,50 @@ prompt-history
 
 Search across everything, browse by tool then project then session, copy any prompt with one click, download the lot as a zip.
 
-It binds to `127.0.0.1` and serves a single HTML file. Nothing is uploaded, because there is nothing to upload to.
+It binds to `127.0.0.1` and serves the interface and its bundled scripts locally. No account or remote service is needed.
+
+### Local analytics
+
+Open **Analytics** beside **Prompts** to explore your activity. Everything is
+calculated in your browser from the local scan, with no telemetry, external
+services, or additional dependencies.
+
+![Local analytics showing writing totals, time estimates, and rankings for three fictional projects](https://raw.githubusercontent.com/alshell7/prompt-history/main/docs/images/local-analytics.png)
+
+*Compare projects by activity, words, prompts, or estimated typing time. The figures shown are illustrative.*
+
+- Rank projects by estimated activity time, typing time, words, or prompts.
+  Full paths keep projects with the same name separate. Click a project to focus it.
+- Count words, Unicode characters, approximate prose sentences, sessions, and active days.
+- Explore daily volume, weekday/hour patterns, current and longest streaks,
+  project switches, and sessions with the most writing.
+- Compare tools, prompt lengths, median and 90th-percentile word counts,
+  repeated submissions, slash commands, and attachment references.
+- Apply the current search, tool, project, session, and entry-type filters,
+  then narrow analytics with inclusive local-calendar dates. **All time** clears
+  just the analytics date range. Server scan filters still apply.
+- Download a JSON report with aggregates, project/session labels, filters,
+  and calculation settings. Original prompt text is omitted.
+
+**Time is estimated, not tracked.** Activity uses nearby prompt timestamps;
+typing time uses word count and your chosen WPM. Neither measures time at the
+keyboard, and the two estimates should not be added together.
+[Read how the estimates and counts work](https://github.com/alshell7/prompt-history/blob/main/docs/analytics.md).
+
+### Share an activity card
+
+A snapshot of your prompting habits, ready to paste into a message or save for
+your own records. Choose **Analytics → Share image**, preview it in light or
+dark mode, then download the PNG or copy the image.
+
+![Example activity card with synthetic statistics, a daily activity chart, and three fictional projects](https://raw.githubusercontent.com/alshell7/prompt-history/main/docs/images/activity-card.png)
+
+*A real 1200 × 1000 PNG export. Project names are enabled for this fictional example; they are hidden by default.*
+
+The card follows your current selection and leaves out prompt text, file paths,
+session titles, and search terms. Native sharing is available where the browser
+supports it. Everything is rendered on your device, with a small
+`Generated by` / `pip install prompt-history` footer. No image service or upload.
 
 ### The terminal, if you live there
 
@@ -171,7 +230,7 @@ report = ph.sync("~/prompts")      # mirror to a folder
 print(report.summary())            # "Wrote 3 new, 1 updated."
 ```
 
-Every CLI flag is a keyword argument, and a typo raises instead of silently returning everything.
+Scan and filter settings are available as keyword arguments, and an unknown setting raises instead of silently returning everything.
 
 `Prompt` carries `text`, `timestamp`, `project`, `session_id`, `model`, `git_branch`, `turn`, `words` and `kind`. `Session` carries the prompts plus where they came from.
 
@@ -242,11 +301,9 @@ When a history log repeats a prompt a transcript already has, you see it once. `
 
 ## What it cannot do
 
-Claude Desktop and ChatGPT Desktop chats are not files on your disk. They are in encrypted app storage or only on a server.
+Claude Desktop and ChatGPT Desktop chat databases are outside the supported sources. This app reads the local CLI and Codex session formats listed above.
 
-Codex makes this visible: if you use the desktop app, the thread titles are cached locally but the prompt text is not. Prompt History counts those threads and tells you, rather than quietly pretending they are not there.
-
-If somebody tells you they can export your Claude Desktop history from local files, check what they are actually reading.
+Some Codex tasks have locally cached titles but no readable prompt history. Prompt History reports those tasks as unavailable; it cannot recover text that is not present in a supported local source.
 
 ---
 
@@ -255,11 +312,11 @@ If somebody tells you they can export your Claude Desktop history from local fil
 Your prompts contain your API keys, your client names and your worst code. So:
 
 - Session files are opened read only and never modified
-- The server binds to loopback, and there is no outbound request anywhere in the codebase
-- No telemetry, no analytics, no update check
-- Zero third-party packages, so there is no supply chain to trust but this one
+- The server binds to loopback, and the running application makes no outbound requests
+- No telemetry, no external analytics, no update check
+- Zero third-party runtime dependencies; development tools are separate
 
-It is roughly 2,300 lines of stdlib Python plus one HTML file. Read it yourself, it will not take long.
+It uses stdlib Python, HTML, and bundled JavaScript. The source is available to read and audit. Copying, downloading, or sharing an export is always an explicit action.
 
 ---
 
@@ -278,7 +335,10 @@ prompthistory/
 ├── sources/
 │   ├── claude_code.py
 │   └── codex.py       <- copy this one
-└── web/index.html     the whole frontend
+└── web/
+    ├── index.html    interface and interaction
+    ├── analytics.js  local activity calculations
+    └── share-card.js local PNG rendering
 ```
 
 Write a module in `sources/` that returns `list[Session]`, call it from `PromptHistory.refresh()`, add a fixture to `tests/conftest.py`. Done.
@@ -288,10 +348,14 @@ git clone https://github.com/alshell7/prompt-history
 cd prompt-history
 pip install -e ".[dev]"
 pytest
-node --test tests/web.test.cjs   # reference rendering and link safety
+node --test tests/web.test.cjs tests/analytics.test.cjs tests/share-card.test.cjs
 ```
 
 An optional browser smoke test lives in `tests/browser_smoke.cjs`. With Playwright and Chrome installed, run `node tests/browser_smoke.cjs` to check desktop/mobile rendering, copying, search, project isolation, and offline assets against synthetic data.
+
+Documentation screenshots are reproducible with `node scripts/readme_screenshots.cjs`
+(Playwright and Chrome required only for this development task). The generator
+serves an isolated, fictional dataset and never scans local session files.
 
 Cursor, Aider, Gemini CLI and Zed all keep local transcripts. Pull requests very welcome.
 

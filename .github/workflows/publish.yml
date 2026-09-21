@@ -16,6 +16,10 @@ jobs:
           python-version: "3.12"
       - run: pip install ".[dev]"
       - run: pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test tests/web.test.cjs tests/analytics.test.cjs tests/share-card.test.cjs
       - run: python -m build
       - run: twine check dist/*
       - run: python tests/install_smoke.py

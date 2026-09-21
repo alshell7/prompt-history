@@ -36,4 +36,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: node --test tests/web.test.cjs
+      - run: node --test tests/web.test.cjs tests/analytics.test.cjs tests/share-card.test.cjs

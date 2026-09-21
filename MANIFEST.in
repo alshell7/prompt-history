@@ -1,6 +1,9 @@
 include LICENSE README.md CHANGELOG.md THIRD_PARTY_NOTICES.md
 include prompthistory/py.typed
 recursive-include prompthistory/web *.html
+recursive-include prompthistory/web *.js
+recursive-include docs *.md *.png
+include scripts/readme_screenshots.cjs
 recursive-include tests *.py
 recursive-include tests *.cjs
 global-exclude __pycache__ *.py[cod]

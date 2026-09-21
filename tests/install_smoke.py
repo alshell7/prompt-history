@@ -15,7 +15,12 @@ from pathlib import Path
 
 
 def main():
-    wheel = next((Path(__file__).resolve().parents[1] / "dist").glob("*.whl"))
+    project_root = Path(__file__).resolve().parents[1]
+    metadata = (project_root / "pyproject.toml").read_text(encoding="utf-8")
+    version = re.search(r'^version = "([^"]+)"', metadata, re.MULTILINE)[1]
+    wheels = list((project_root / "dist").glob(f"prompt_history-{version}-*.whl"))
+    assert len(wheels) == 1, f"Build exactly one wheel for version {version} before testing."
+    wheel = wheels[0]
     env = dict(os.environ)
     env.pop("PYTHONPATH", None)
     env.pop("PYTHONHOME", None)
@@ -52,6 +57,12 @@ def main():
                 with opener.open(match[0], timeout=10) as response:
                     html = response.read().decode("utf-8")
                 assert "Prompt History" in html and "provider-icon" in html and "renderPrompt" in html
+                with opener.open(match[0] + "analytics.js", timeout=10) as response:
+                    assert "javascript" in response.headers["Content-Type"]
+                    assert "PromptAnalytics" in response.read().decode("utf-8")
+                with opener.open(match[0] + "share-card.js", timeout=10) as response:
+                    assert "javascript" in response.headers["Content-Type"]
+                    assert "PromptShareCard" in response.read().decode("utf-8")
             finally:
                 process.terminate()
                 process.wait(timeout=10)

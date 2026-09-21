@@ -1,7 +1,7 @@
 """Loopback HTTP server backing the browser UI.
 
-Three endpoints: the page, a JSON snapshot, and the zip archive. Nothing is
-written to disk by the server and nothing leaves the machine.
+Serves the browser assets, JSON snapshots, exports, and optional folder sync.
+Nothing leaves the machine.
 """
 
 from __future__ import annotations
@@ -97,6 +97,11 @@ class _Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             page = WEB_DIR / "index.html"
             self._send(200, page.read_bytes(), "text/html; charset=utf-8")
+            return
+
+        if path in ("/analytics.js", "/share-card.js"):
+            self._send(200, (WEB_DIR / path[1:]).read_bytes(),
+                       "text/javascript; charset=utf-8")
             return
 
         if path == "/api/data":

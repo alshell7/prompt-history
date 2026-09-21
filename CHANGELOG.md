@@ -3,6 +3,23 @@
 All notable changes to this project are documented here.
 This project follows [semantic versioning](https://semver.org/).
 
+## [1.3.0] - 2026-09-22
+
+### Added
+- Visual README with reproducible screenshots of fictional prompt history,
+  analytics, and share cards; no personal history is used in documentation images.
+- Shareable activity cards with local PNG rendering, preview, light/dark themes,
+  optional project names, clipboard copy, and native sharing where supported.
+- Compact navigation and mobile project browsing, responsive analytics tables,
+  stronger secondary-text contrast, and bounded long session titles.
+- Entirely local analytics with project and tool comparisons, estimated activity
+  and typing time, word/character/sentence counts, daily trends, weekday/hour
+  patterns, streaks, prompt length distribution, and session rankings.
+- Analytics date filters, adjustable typing speed and idle cutoff, project
+  drill-down, and aggregate JSON downloads with documented assumptions.
+- Coverage for overlapping tasks, idle gaps, filtering, missing/future dates,
+  local midnight, Unicode, exports, and large histories; packaged analytics assets.
+
 ## [1.2.0] - 2026-09-21
 
 ### Packaging
